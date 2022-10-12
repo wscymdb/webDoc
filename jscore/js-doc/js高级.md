@@ -529,6 +529,8 @@ console.log(newFn(2)); // 256
 * 可以通过对象的``__proto__``属性可以获取到（但是这是早期浏览器自己添加的，存在一定的兼容性）
 * 作用是再``使用new操作符``的时候，将``函数的显示原型``赋值给对``象的隐式原型``，这样对象就可以使用了
 
+![](https://img-blog.csdnimg.cn/2019022822050917.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM4NzIyMDk3,size_16,color_FFFFFF,t_70)
+
 ## 5.3.ES5实现继承
 
 寄生组合式继承（思想）
