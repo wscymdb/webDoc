@@ -564,7 +564,7 @@ console.log(newFn(2)); // 256
       Person.prototype.say = () => console.log("say Person");
 
       function Student(name, age, score) {
-        Person.call(this.name, age);
+        Person.call(this,name, age);
         this.score = score;
       }
 
@@ -1012,7 +1012,7 @@ react中会用，暂做了解
     foo.length // 1
     ```
 
-* 剩余参数也是放到最后面，但是要放到默认参数之前
+* 剩余参数也是放到最后面，但是要放到默认参数之后
 
 ```javascript
 function foo(name='zs',age=18) {
@@ -1123,8 +1123,8 @@ let symbolKeys = Object.getOwnPropertySymbol(obj)
 * 可以通过Symbol.keyFor方法来获取对应的key (当前symbol的描述)
 
 ```javascript
-const s1 = Symbol()
-const s2 = Symbol()
+const s1 = Symbol.for('des')
+const s2 = Symbol.for('des')
 consolel.log(s1 === s2) //true
 
 const s3 = ('sdfs')
@@ -1451,7 +1451,7 @@ const finalization = new FinalizationRegistry(() => {
     console.log("first");
 });
 finalization.register(obj);
-obj = null;
+obj = 123;
 ```
 
 ### 7.5.2.WeakRefs
@@ -1736,7 +1736,7 @@ proxyObj.name;
 
 * **pending（待定）**
   * 初始状态，既没有被兑现，也没有被拒绝，
-* **fulfilled（已对象）**
+* **fulfilled（已兑现）**
   * 意味着操作成功，执行了resolve时，处于该状态
 * **rejected（已拒绝）**
   * 意味着操作失败，执行reject时，处于该状态
@@ -1916,7 +1916,7 @@ function catch1(cb) {
 * 他的作用是``将多个Promise包裹在一起形成一个新的Promise``
 * ``新的Promise状态由包裹的所有Promise共同决定``
   * 当``所有的Promise状态变成fulfilled状态``时，``新的Promise状态为fulfilled``，并且会``将所有的Promise的返回值组成一个新的数组``
-  * 当``有一个Promise状态为reject时``，新的``Promise状态为reject``，并且会``将第一个reject的返回值作为参数``，给catch方法
+  * 当``有一个Promise状态为reject时``，新的``Prmise状态为reject``，并且会``将第一个reject的返回值作为参数``，给catch方法
 
 ```javascript
 const promise = new Promise((reslove, reject) => {
@@ -2039,7 +2039,7 @@ Promise.any([promise, promise1, promise2])
 # 11.Iterator(迭代器)
 
 * **在Javascript中，迭代器也是一个具体的对象，这个对象需要符合迭代器协议**（iterator protocol）
-  * 迭代器协议定义了``产生一系列值（无论是有限还是无线个）的标准方式``
+  * 迭代器协议定义了``产生一系列值（无论是有限还是无限个）的标准方式``
   * 在JavaScript中这个标准就是一个``特点的next方法``
 
 **next方法有如下的要求**
@@ -2528,7 +2528,7 @@ function* createIterator(arr) {
 * ``main script中的代码优先执行``（编写的顶层script代码）
 * 在``执行任何一个宏任务之前（不是队列，是一个宏任务）``，都会``先查看微任务队列中是否有任务需要执行``
   * 也就是宏任务执行前，必须保证微任务队列是空的
-  * 如果不为空，那么久优先执行微任务队列中的任务（回调）
+  * 如果不为空，那么就优先执行微任务队列中的任务（回调）
 
 ## 15.5.面试题
 

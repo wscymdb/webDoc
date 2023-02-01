@@ -32,7 +32,7 @@
 
 * ES6之前JavaScript是没有模块化得概念的
 * `直到ES6(2015)`才推出了自己的`模块化方案(ESModule)`
-* 在此之前，为了让JavaScript支持模块化，涌出很多不同的模块化规范:`AMD、CMD、ComminJS`
+* 在此之前，为了让JavaScript支持模块化，涌出很多不同的模块化规范:`AMD、CMD、CommonJS`
 
 ## 3.3.CommonJS
 
@@ -118,7 +118,7 @@
       2. 查找X.js文件
       3. 查找X.json文件
       4. 查找X.node文件
-  * `第二步`：灭有找到对应的文件，将X作为一个目录
+  * `第二步`：没有找到对应的文件，将X作为一个目录
     * 查找目录下的index文件，按照如下顺序
       1. 查找X/index.js文件
       2. 查找X/index.json文件
