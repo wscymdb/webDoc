@@ -496,3 +496,358 @@ request(info3.url, info3.method);
 * instanceof
 * in
 * 等等...
+
+```javascript
+type IDType = string | number;
+
+function bar(id: IDType) {
+    if (typeof id === "string") {
+        let len = id.length;
+    }
+}
+```
+
+## 2.5.函数类型
+
+### 2.5.1.函数类型表达式(Function Type Expressions)
+
+* 格式
+  * **(参数列表) => 返回值**
+
+```javascript
+type FnType = () => string
+
+const bar: FnType = () => { return 'hhh' }
+```
+
+**注意**
+
+* **`ts对于传入的函数类型的参数个数不进行检测`**
+
+* 但是在调用的时候会检测
+
+* 简而言之：当`函数定义`不会检测参数的个数，但是当`调用`这个函数的时候就`会检测`
+
+* 定义函数类型和定义函数的形参名字可以不一样(形参本来就可以自定义)
+
+* ```javascript
+  // ts对于传入的函数类型的参数个数不进行检测
+  type CalcType = (n1: number, n2: number) => number;
+  
+  function calc(calcFn: CalcType) {
+      // 调用的时候会检测
+      calcFn(10,20)
+  }
+  // 不传入参数不会报错
+  calc(() => 123);
+  
+  // 为什么ts会有这种机制
+  // 举个例子
+  // 传入forEach的匿名函数里面的个数不是都需要用到的
+  // 如果ts对函数的参数的个数进行校验，那么每个形参都要写，那么就很麻烦
+  // 所以就不校验函数的参数个数
+  [1, 2, 3].forEach((item, i, arr) => {});
+  export {};
+  ```
+
+**官网解析**
+
+```javascript
+// 官网解释
+// https://www.typescriptlang.org/docs/handbook/2/functions.html#optional-parameters-in-callbacks
+// 在JavaScript中定义一个函数，如果形参只有一个
+// 调用的时候传入了两个，那么多余的一个参数就会被忽略
+// ts中也是如此，所以即使定义函数与定义的类型参数不符合也不会报错
+// 但是定义的函数的参数不能大于函数类型的参数个数
+// 当在定义回调函数的类型的时候永远不要可选参数
+// 除非在调用这个回调函数的时候想要忽略某个参数
+//
+type CalcType = (n1: number, n2: number) => number;
+
+function calc(calcFn: CalcType) {
+    // 如果想要忽略某个参数 可以使用可选参数
+    // type CalcType = (n1: number, n2?: number) => number;
+
+    calcFn(10, 2);
+}
+
+// 不传入参数不会报错
+calc(() => 123);
+```
+
+
+
+### 2.5.2.函数调用签名(call Signatures)
+
+* `函数本身也是对象`，也可以有自己的属性
+*  使用`函数类型表达式`，函数`只能被调用`，不能做其他操作(添加属性等)
+* 所以可以使用函数调用签名
+
+```javascript
+interface IBar {
+    name: string;
+    age: number;
+    // 让函数可以调用：函数调用签名
+    (n: number): number;
+}
+
+const bar: IBar = (): number => {
+    return 123;
+};
+
+bar.name = "bar";
+bar.age = 22;
+bar(1);
+```
+
+### 2.5.3.两者使用场景
+
+* 如果只是描述函数类型本身(函数可以被调用)，使用函数类型表达式
+* 如果在描述函数作为对象时可以被调用，同时也有其他属性时，使用函数调用签名
+
+### 2.5.4.构造签名(理解)
+
+* JavaScript的函数也可以使用new操作符调用，typescript会认为这个是一个构造函数
+* `所以对于构造函数的类型就要用构造签名`
+
+```javascript
+class Person {}
+
+interface ICSTPerson {
+    new (): Person;
+}
+function factory(fn: ICSTPerson) {
+    const f = new fn();
+    return f;
+}
+
+factory(Person);
+```
+
+### 2.5.5.可选参数
+
+* 可选参数的类型是 `指定的类型和undefined的联合类型`
+* 可选参数必须写在必传参数的后面
+
+```javascript
+// 可选参数的类型是 指定的类型和undefined的联合类型
+//  这个函数的y参数类型 ：number | undefined
+function foo(x: number, y?: number) {}
+
+foo(1);
+foo(111, 222);
+```
+
+### 2.5.6.默认参数
+
+* 参数有默认值的情况下，`参数的类型注解可以省略`
+* 有默认值得参数，是可以接收一个undefined的值，
+  * 因为默认情况下当值是undefined才会启用默认值
+
+```javascript
+function foo(x: number, y = 100) {}
+// foo(1) 内部转换的时候相当于 foo(1,undefined) 
+foo(1);
+foo(111, undefined);
+```
+
+### 2.5.7.函数的重载(了解)
+
+* 在ts中，可以去`编写不同的重载签名(overload signatures)`来表示函数可以`以不同的方式进行调用`
+* 一般是`编写两个或两个以上的重载签名`，再去`编写一个通用的函数以及实现`
+
+```javascript
+//  实现一个sum函数 既可以进行数字的相加，也可以实现字符串的相加
+
+// 利用函数的重载解决方案
+
+// 1.编写函数的重载签名
+function sum(num1: number, num2: number): number;
+function sum(num1: string, num2: string): string;
+// 2.编写通用的函数
+function sum(num1: any, num2: any) {
+    return num1 + num2;
+}
+
+// 注意 通用函数是不能被直接调用的
+// 就是传入的参数只能符合重载签名其中一种类型
+
+sum(10, 20);
+sum("aaa", "bbb");
+```
+
+### 2.5.8.联合类型和重载
+
+* **在可能的情况下，尽量选择使用联合类型来实现**
+
+```javascript
+//  需求 定义一个函数 可以传入字符串或者数组，来获取他们的长度
+
+// 1.重载方式
+function getLen(a: string): number;
+function getLen(a: any[]): number;
+function getLen(a: any) {
+    return a.length;
+}
+
+// 2.联合类型实现
+function getLength(a: string | any[]) {
+    a.length;
+}
+```
+
+### 2.5.9.可推导的this
+
+​	**注意**： `下面this会报错的情况，都是开启了检验this的选项`
+
+#### 2.5.9.1.默认情况下的this
+
+* 在没有对ts做任何配置的情况下，ts在编译时，this可以正确去使用
+* 以下代码可以正常运行
+* `因为在没有指定this的情况下，this默认情况下的类型是any`
+
+```javascript
+function foo(this: {}, num: number) {
+  console.log(this);
+  return 123;
+}
+
+```
+
+#### 2.5.9.2.配置情况下的this
+
+* 可以创建一个`tsconfig.json`文件，并且在其中告知VSCode `this必须有明确类型`(不能是隐式的（any）)
+
+tsconfig.json文件
+
+```json
+{
+    "compilerOptions": {
+        "noImplicitThis": true,  // 设置this必须是有明确类型
+    }
+}
+```
+
+* 在设置了`noImplicitThis`为true时，ts会根据上下文推导this，但是当不能正确推导的时候，就会报错，这时候就需要明确指定this的类型
+
+```javascript
+// 下面this会报错， 不能正确推导this的类型
+function foo() {
+    console.log(this)
+}
+
+// 下面this不会报错，根据上下文推导出this的类型是整个obj对象
+let obj = {
+  say() {
+    console.log(this);
+  },
+};
+
+```
+
+**手动指定this的类型**
+
+* 函数的`第一个参数用于声明this的类型(名词必须叫this)`
+* 在后续调用函数传参时，`函数的第二个形参(this之后的形参)作为第一个形参`
+* this参数会在编译后被抹除
+  * 当ts转为js的时候是没有this这个形参的，this形参的出现只是为了做类型约束
+
+```javascript
+// this后面跟自己指定的类型
+function foo(this:{}, num: number) {
+    console.log(this)
+}
+
+foo.call('', 2321)
+```
+
+#### 2.5.9.3.this相关的内置工具
+
+**案例公共部分**
+
+```javascript
+function foo(this: { name: "zs" }, nmu: number) {
+    console.log(this);
+}
+
+// 获取函数的类型
+/*
+    type FooType = (this: {
+        name: "zs";
+    }, nmu: number) => void
+*/
+type FooType = typeof foo;
+```
+
+**ThisParameterType**
+
+* 用于提取一个函数类型的`this的参数类型`
+
+* 如果这个函数类型没有this参数，返回unknown
+
+* ```javascript
+  // 1. 获取当前函数的this的类型
+  /* type FooThisType = {
+      name: "zs";
+  } */
+  type FooThisType = ThisParameterType<FooType>;
+  ```
+
+**OmitThisParameter**
+
+* 用于移除一个函数类型的this参数类型，并且`返回当前函数的类型`
+
+* ```javascript
+  // 2. 省略当前函数类型的this，返回一个纯净的函数类型
+  // type PureFooType = (nmu: number) => void
+  type PureFooType = OmitThisParameter<FooType>;
+  ```
+
+**ThisType**
+
+* 这个类型不会返回一个转换过的类型，它用于`标记一个上下文的this类型`
+
+* ```javascript
+  // 3. ThisType: 用于绑定上下文的this
+  
+  // 下面案列中，
+  // 如果想要在say或hi方法中直接使用this.name就会报错
+  // 因为根据上下文推导得this得类型时IStore 里面没有name
+  // 但是调用得时候 store.say.call(store.state); 传入了this
+  // 解决方案一 (如果这个对象中有1000个方法就要定义1000次this类型，麻烦)
+  //  在每个方法中指定this得类型
+  /*   say(this: IState) {
+      console.log(this.name);
+    },
+    */
+  
+  // 解决方案二  ThisType<类型>
+  // 指定一次this的类型，这个对象中的this的类型都指向 指定得这个类型
+  interface IState {
+    name: string;
+    age: number;
+  }
+  interface IStore {
+    state: IState;
+    say: () => void;
+    hi: () => void;
+  }
+  
+  const store: IStore & ThisType<IState> = {
+    state: {
+      name: "zs",
+      age: 18,
+    },
+    say() {
+      console.log(this.name);
+    },
+    hi() {
+      console.log(this.name);
+    },
+  };
+  
+  store.say.call(store.state);
+  ```
+
+## 2.6.面向对象
+
