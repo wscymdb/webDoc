@@ -1,7 +1,7 @@
 # 1.typeScript的特点
 
 * ts的语法是基于js来的，节省开发者的学习成本
-* ts可以编译处纯净、简洁的JavaScript代码，并且可以运行在任何浏览器、NodeJs环境中和支持ECMAScript3或以上版本的js引擎中
+  * ts可以编译处纯净、简洁的JavaScript代码，并且可以运行在任何浏览器、NodeJs环境中和支持ECMAScript3或以上版本的js引擎中
 * ts是一个强大的工具，构建大型项目更加安全
 * ts拥有先进的js语法，ts是紧随着js的更新而更新
 
@@ -850,4 +850,1208 @@ type FooType = typeof foo;
   ```
 
 ## 2.6.面向对象
+
+### 2.6.1.类的定义
+
+* ts中定义类，必须要`提前声明成员属性`
+* 如果成员属性的类型没有声明，那么默认是any类型
+* 也可以给属性设置初始值，那样就可以省去属性的类型声明(类型推导出来)
+
+```javascript
+// ts定义类，必须要声明成员属性
+class Person {
+  // 声明成员属性
+  name: string;
+  age: number;
+
+  constructor(name: string, age: number) {
+    this.name = name;
+    this.age = age;
+  }
+}
+
+const p1 = new Person("zs", 22);
+
+console.log(p1.name, p1.age);
+```
+
+* 在默认的strictPropertyInitialization模式下(有配置文件)，属性是`必须初始化`的，如果没有初始话编译时就会报错(了解即可，目前没啥用)
+
+```javascript
+class Person {
+    // strictPropertyInitialization模式下且不能在构造函数中初始化name和age时必须初始化
+    name: string = '1';
+    age: number = 0;
+
+    // 如果实在不想初始化
+    name!: string ;
+    age!: number;
+}
+
+const p1 = new Person();
+
+console.log(p1.name, p1.age);
+```
+
+### 2.6.2.类的成员修饰符
+
+**在ts中，类的属性和方法支持三种修饰符**
+
+* **public**
+  * 修饰的是在任何地方可见，共有的属性或方法，`默认编写的属性就是public的`
+* **private**
+  * 修饰的是仅在同一类中可见，`私有的属性或方法`
+* **protected**
+  * 修饰的是仅在类自身以及子类中可见，`受保护的属性或方法`
+
+```javascript
+class Person {
+  name: string;
+  age: number;
+  private id: number;  /// 仅在当前类中可以使用
+  protected score: number; // 当前类和子类中使用
+
+  constructor(name: string, age: number) {
+    this.name = name;
+    this.age = age;
+  }
+
+  say() {
+    console.log(this.id);
+  }
+}
+
+class Student extends Person {
+  study() {
+    console.log(this.score);
+  }
+}
+
+const p1 = new Person("zs", 19);
+console.log(p1.age);
+```
+
+### 2.6.3.只读属性
+
+* 使用`readonly` 修饰符
+
+```javascript
+class Person {
+  readonly name: string;
+  age: number;
+  constructor(name: string, age: number) {
+    this.name = name;
+    this.age = age;
+  }
+}
+
+const p1 = new Person("zs", 19);
+console.log(p1.age);
+
+// 只读属性 不可以改写
+p1.name = "zs";
+
+```
+
+### 2.6.4.setter和getter
+
+* 使得外界可以操作类的私有属性
+
+```javascript
+class Person {
+  // 定义私有属性 一般使用 _ 开头
+  private _age: number;
+
+  constructor(age: number) {
+    this._age = age;
+  }
+
+  // 使得外界可以访问类的私有属性
+  // 不可以和私有属性同名
+  set age(newVal: number) {
+    if (newVal < 120 && newVal > 0) {
+      this._age = newVal;
+    }
+  }
+
+  get age() {
+    return this._age;
+  }
+}
+
+const p1 = new Person(19);
+p1.age = 12;
+
+
+```
+
+### 2.6.5.参数属性
+
+* ts提供了特殊的语法，可以把一个构造函数参数转为一个同名同值的类属性
+* 可以通过在构造函数参数前 `添加一个可见性修饰符 public private protected readonly 来创建参数属性`，最后`这些类属性字段也会得到这些修饰符`
+
+```javascript
+class Person {
+  constructor(public name: string, private _age: number) {}
+}
+
+// 上面的写法是下面的语法糖
+
+// class Person {
+//   name: string;
+//   _age: number;
+//   constructor(name: string, _age: number) {
+//     this.name = name;
+//     this._age = _age;
+//   }
+// }
+
+const p1 = new Person("zs", 19);
+console.log(p1.name);
+```
+
+### 2.6.6.抽象类 abstract（理解）
+
+* 使用 `abstract` 关键字 声明抽象类和抽象方法
+* `抽象方法必须存在于抽象类中`
+
+**抽象类有如下特点**
+
+* 抽象类是不能被实例化的
+* 抽象类可以包含抽象方法，可以刻包含有实现体的方法
+* 抽象方法必须被子类实现，否者该类必须是一个抽象类
+
+**案例**
+
+```javascript
+abstract class Shape {
+  abstract getArea(): void;
+}
+class Rectangle {
+  constructor(public height: number, public width: number) {}
+
+  getArea() {
+    return this.height * this.width;
+  }
+}
+
+class Circle {
+  constructor(public radius: number) {}
+
+  getArea() {
+    return this.radius * 2 * Math.PI ** 2;
+  }
+}
+
+// 通用函数
+function calcArea(shape: Shape) {
+  return 100;
+}
+
+calcArea(new Rectangle(10, 20));
+calcArea(new Circle(10));
+
+// 有一个通用函数 传入一个参数 用于获取几何图形的面积
+// 本来这个函数是一个比较通用的函数
+// 不能每次多一个类型就改变函数参数的类型
+// 所以创建一个父类 让后续所有的类都继承这个父类
+// 继承父类的子类们要求都要用getArea方法
+// 所以可以在父类中使用抽象方法  也就是没有实现体
+// 那么后续继承这个父类的子类就必须有getArea这个方法
+```
+
+### 2.6.7.ts中类型检测是鸭子类型
+
+```javascript
+class Person {
+  constructor(public name: string) {}
+}
+
+function foo(fn: Person) {}
+
+// foo的参数类型是Person 
+// 但是传入对象也不会报错
+// 因为ts的类型检测是鸭子类型 
+foo({ name: "ss" });
+```
+
+### 2.6.8.ts类的具有的特性
+
+```javascript
+class Person {}
+
+// 类的作用
+// 1. 可以创建类对应的示例对象
+const p = new Person();
+
+// 2. 类本身可以作为类型
+const p1: Person = new Person();
+function foo(fn: Person) {}
+
+// 类也可以当作是一个构造签名的函数
+interface IFactory {
+  new (): void;
+}
+function factory(ctor: IFactory) {}
+factory(Person);
+
+```
+
+### 2.6.9.对象类型的属性修饰符
+
+* Property Modifiers
+* 可选属性（optional Properties）
+  * 在属性名后面加?，标记此属性是可选的
+* 只读属性
+  * 在类型检查的时候 有此修饰符的属性不可以被修改，
+  * 不会改变运行时的行为
+
+```javascript
+interface IInfo {
+  // 属性? 表示此属性可选
+  name?: string;
+  // age只能读取  不能修改
+  readonly age: number;
+}
+
+const info: IInfo = {
+  name: "zs",
+  age: 19,
+};
+
+```
+
+### 2.6.10.索引签名(Index Signatures)（理解）
+
+* 有时候你不能提前知道一个类型的全部属性的名字，但是你知道值的形式是啥样的，这时候你就可以使用索引签名去描述 这个类型可能的值(官网翻译过来的)
+*  `ts规定阿数组签名的索引类型必须是string或者number其中一个`
+
+```javascript
+// 假设getInfo是三方库的一个方法
+// 但是我们不知道这个方法返回的对象具体有啥属性
+// 但是我们知道大概的返回值
+// 这时候可以使用索引签名
+// 描述的类型：索引是字符串 返回值是字符串
+// [key: string]: string  key可以自定义写啥都行
+
+interface IInfo {
+  // 索引签名：可以通过一个字符串索引 去获取一个字符串类型的值
+  [key: string]: string;
+}
+function getInfo(): IInfo {
+  return { name: "zs", slogan: "sss" };
+}
+
+
+
+// 案例
+
+interface ICollection {
+  [index: number]: string;
+  length: number;
+}
+
+// 有一个比较的函数 要求传入的参数必须是ICollection类型的
+// 那么就可以做一些比较通用的事情，比如传进来的一定有length属性
+
+// 如果参数类型是 any[]那么如果要是元组类型或别的类型就还要重新定义，这个函数就没有那么通用了
+// 用索引签名就能很好的解决这一问题
+
+function getCollection(collection: ICollection) {
+  for (let i = 0; i < collection.length; i++) {
+    console.log(collection[i]);
+  }
+}
+
+const names = ["zs", "ls"];
+const tuple: [string, string] = ["t1", "t2"];
+
+getCollection(names);
+getCollection(tuple);
+
+export {};
+
+```
+
+**注意**
+
+* 如果索取签名中定义的有其他属性，其他属性的返回类型必须符合string类型返回的类型
+
+* ```javascript
+  interface IIndex {
+      [key: string]: string
+      aaa: string  // 正确
+      aaa: number  // 报错
+  }
+  ```
+
+* 
+
+奇怪的现象解析**
+
+```javascript
+//  ts规定阿数组签名的索引类型必须是string或者number其中一个
+// 不可是联合类型
+interface ICollection {
+  [index: number]: string; // 1
+  // [index: string]: any;    // 2
+  // [index: string]: string; // 3
+}
+
+//  将类型1改为类型2 同样也不会报错
+// 但是意思是 索引是string 返回值是any  但是数组的索引是number
+// 原因：JavaScript在实际转换的时候会将 names[0] 转换成names["0"]
+
+// 将类型1改为类型3的时候就会报错
+// 数组还有自己的方法 比如 names.forEach
+// 也符合索引是字符串，但是返回值是一个函数
+
+const names: ICollection = ["zs", "ls"];
+```
+
+
+
+### 2.6.11.接口的继承
+
+* 使用 `extends` 关键字
+
+**特点**
+
+* 减少代码的重复编写
+* 提高复用性
+  * 比如: 使用第三方库,既想要保留原来的接口特性,又想要有自己的特性,可以使用继承来完成
+
+```javascript
+interface IPerson {
+  name: string;
+  age: number;
+}
+
+interface IKun extends IPerson {
+  slogan: string;
+}
+
+const jack: IKun = {
+  name: "zs",
+  age: 19,
+  slogan: "你干嘛",
+};
+
+```
+
+* 接口可以被类实现
+* 使用 `implements` 关键字
+
+```javascript
+interface IPerson {
+    name: string;
+    age: number;
+    say: () => void;
+}
+
+interface IRun {
+    run: () => void;
+}
+
+// Person类必须具备IPerson的属性
+// 类可以同时实多个接口
+class Person implements IPerson, IRun {
+    constructor(public name: string, public age: number) {}
+    say() {
+        return 12;
+    }
+    run() {}
+}
+
+```
+
+### 2.6.12.严格的对象字面量赋值检测
+
+**先来看一下ts中奇怪的现象**
+
+```JavaScript
+interface IInfo {
+    name: string;
+    age: number;
+}
+
+// 奇怪的现象一
+
+// 会报错
+// const info: IInfo = {
+//   name: "zs",
+//   age: 12,
+//   slogan: "你干嘛",
+// };
+
+// 不会报错
+let p = {
+    name: "zs",
+    age: 12,
+    slogan: "你干嘛",
+};
+
+const info: IInfo = p;
+
+// 奇怪的现象二
+function printInfo(info: IInfo) {}
+// 报错
+// printInfo({ name: "zs", age: 123, slogan: "111" });
+// 不报错
+let obj = { name: "zs", age: 123, slogan: "111" };
+printInfo(obj);
+
+// 第一次创建的对象称之为新鲜的对象(fresh)
+// 对于一个新鲜的字面量会进行严格的类型检测,必须完全满足类型的要求(不能有多余的属性)
+
+// 当这个对象去别的地方使用了,就不新鲜了, 不会严格的检测,所以会出现这种现象
+// 不用纠结 这是ts的规则
+
+```
+
+**原因**
+
+**GitHub成员issue的解释**
+
+* 每个字面量被初始化的时候都是认为是新鲜的
+
+* 当一个新的字面量对象分配给一个变量或传递给一个非空类型的参数时,对象字面量指定目标类型中不存在的属性是错误的
+
+* 当类型断言或对象字面量的类型扩大时,新鲜度就会消失
+
+  * 当一个对象初次创建属于新鲜的,去别的地方用了就不新鲜了
+
+  * ```JavaScript
+    let obj = {name: 'zs'} // 新鲜
+    let bbj = obj  // 不新鲜
+    ```
+
+  * 
+
+### 2.6.13.枚举类型
+
+* 将一组可能出现的值，一个个列举出来，定义在一个类型中，这个类型就是枚举类型
+* 枚举允许开发者定义一组命名常量，常量可以是数字、字符串类型
+* 使用 `enum` 关键字
+
+```javascript
+//  定义枚举类型
+enum Direction {
+  UP,
+  LEFT,
+  RIGHT,
+}
+
+const d1: Direction = Direction.LEFT;
+```
+
+**枚举类型的值**
+
+* 枚举类型默认是有值的，第一个值默认是0，之后的值依次递增
+* 也可以给枚举赋值number类型的，后面的枚举的值也是依次递增
+* 如果赋值是string 后面的值都要手动赋值
+
+```javascript
+//  定义枚举类型
+enum Direction {
+  UP, // 0
+  LEFT = 'left', // left
+  RIGHT = 'right',  // right
+}
+
+const d1: Direction = Direction.LEFT;
+console.log(d1);  // left
+```
+
+## 2.7.泛型
+
+### 2.7.1.泛型实现类型参数化
+
+* `让类型变为参数化`
+  * 比如调用一个函数的时候让调用者传入类型，这样类型的可扩展性更强
+* 需要用到一种`特殊的变量-类型变量(type variable)`，它作用于类型，不作用于值
+  * \<Type = type>就是类型变量
+  * type 是默认值
+
+```javascript
+// 定义一个函数 返回值是传入的形参
+
+// 如果不给形参指定类型 那么r1/r2结果都是any类型, 那么就会丢失了类型限制
+// 如果给形参指定一个联合类型 那么r1\r2的结果就都是联合类型
+// 但是需要传入的啥类型，返回值就是啥类型
+// 所以可以将类型作为参数，让调用者传来
+
+function returnParameter<Type>(arg: Type) {
+    return arg;
+}
+
+// 完整写法
+const r1 = returnParameter<string>("aaa");
+const r2 = returnParameter<number>(111);
+
+// 省略写法
+// 可以不传入参数的类型，ts会根据实参类型推导出类型
+// 如果类型推断不正确 需要手动填写
+const r3 = returnParameter("bbb");
+const r4 = returnParameter(222);
+
+// 案例
+// 元组：useState函数
+function useState<Type>(initialState: Type): [Type, (newState: Type) => void] {
+  let state = initialState;
+  function setState(newState: Type) {
+    state = newState;
+  }
+
+  return [state, setState];
+}
+
+const [count, setCount] = useState(100);
+const [message, setMessage] = useState("hello world");
+const [banners, setBanners] = useState<any[]>([]);
+```
+
+**泛型支持传入多个类型**
+
+```javascript
+function foo<T, E>(arg1: T, arg2: E) {
+    
+}
+foo(1,'1')
+foo(2, 3)
+```
+
+### 2.7.2. 泛型接口
+
+* 接口使用泛型`可以设置默认值`
+* 接口使用泛型`无法进行类型推导`
+
+```javascript
+// 接口使用泛型
+// 接口使用泛型可以设置默认值
+interface IKun<Type = number> {
+  name: Type;
+  age: number;
+  slogan: Type;
+}
+
+// 接口使用泛型无法进行类型推导
+const k1: IKun<string> = {
+  name: "zs",
+  age: 19,
+  slogan: "你干嘛",
+};
+```
+
+
+
+### 2.7.3. 泛型类
+
+* 类使用泛型`可以设置默认值`
+* 类使用泛型`可以进行类型推导`
+
+```javascript
+class Point<Type = string> {
+  constructor(public x: Type, public y: Type) {}
+}
+
+// 类使用泛型 可以进行类型推导
+const p1 = new Point(10, 20);
+const p2 = new Point<boolean>(true, false);
+```
+
+### 2.7.4.泛型约束
+
+**Generic Constraints**
+
+**基本使用**
+
+* 有时候希望传入的类型有某些共性，但是这些共性可能不在同一个类型中
+  * 比如string和array都是有length的，或者某些对象也可以手动写length属性的
+  * 那么只要是拥有length属性都可以作为参数类型
+
+```javascript
+interface IInfo {
+  length: number;
+}
+
+// 有一个函数 要求传入参数的必须有length属性
+function getInfo(arg: IInfo) {
+  return arg;
+}
+
+// 如果使用上面的写法 那么接收的结果类型是IInfo
+// 但是传入的是string 和 any[] 就会造成类型缺失
+const l1 = getInfo("123");
+const l2 = getInfo(["1", 2, 3]);
+
+// 使用泛型约束  即可让结果类型不会缺失
+// 又可以限制传入的参数必须有length属性
+// <Type extends IInfo> 表示传入的类型必须有IInfo类型的属性，也可以有别的属性
+function getInfo2<Type extends IInfo>(arg: Type): Type {
+  return arg;
+}
+const l3 = getInfo2("123");
+const l4 = getInfo2(["1", 2, 3]);
+const l5 = getInfo2({ length: 123, name: "zs" });
+// const l5 = getInfo2(123);  // 报错
+```
+
+**对传入泛型类型的参数进行约束**
+
+```javascript
+// 此函数  根据key 返回key在obj的值
+// 要求传入的key必须是obj中的属性
+
+// K extends keyof O 表示 K必须是 keyof O("name" | "age" | "height") 中的属性
+// 那么就可以确保 传入的key一定包含在obj中
+function getObjectProperty<O, K extends keyof O>(obj: O, key: K) {
+  return obj[key];
+}
+
+let info = {
+  name: "zs",
+  age: 19,
+  height: 1.88,
+};
+
+getObjectProperty(info, "name");
+
+// keyof 使用说明
+// keyof  xxx： 获取所xxx有的key 组成一个联合类型返回
+
+interface IKun {
+  name: string;
+  age: number;
+}
+
+type IKunKeys = keyof IKun; // "name" | "age"
+```
+
+### 2.7.5.映射类型
+
+* 有时候，`一个类型需要基于另外一个类型`，但是`又不想拷贝一份`，这时候可以考虑用映射类型
+  * 大部分内置工具都是通过映射类型来实现的
+  * 大多数类型体操的题目也是通过映射类型完成的
+
+```javascript
+// 可以把MapIkun当作一个函数
+type MapType<T> = {
+  // 下面的操作其实就相当于遍历了一遍 T
+  // name: string
+  // age: number
+  [property in keyof T]?: T[property];
+  // 拷贝的时候让类型变为可选类型
+  // 如果使用接口的继承那么就没有这么灵活
+  // [property in keyof T]?: T[property];
+};
+
+interface IKun {
+  name: string;
+  age: number;
+}
+
+// 拷贝一份IKun
+type NewKun = MapType<IKun>;
+```
+
+**可选类型的修饰符**
+
+* 支持 `readonly` 和 `? `
+
+```javascript
+// 在拷贝的时候 可以添加? 或readonly修饰符
+type MapType<T> = {
+  readonly [property in keyof T]?: T[property];
+};
+
+interface IPerson {
+  neme: string;
+  age: number;
+  height: number;
+  isGay: boolean;
+}
+
+type newPerson = MapType<IPerson>;
+```
+
+**可选类型修饰符的符号**
+
+* 可在修饰符前面添加 `-` 或 `+`
+* 如果是添加修饰符的话，可以省去`+`，默认就是`＋`
+
+```javascript
+// 在拷贝的时候 如果拷贝源 是有修饰符的可以去掉
+type MapType<T> = {
+  // 表示如果属性的类型有修饰符 那就去掉修饰符
+  -readonly [property in keyof T]-?: T[property];
+};
+
+interface IPerson {
+  neme?: string;
+  age: number;
+  readonly height: number;
+  isGay: boolean;
+}
+type newPerson = MapType<IPerson>;
+```
+
+### 2.7.6.内置工具和类型体操
+
+类型体操地址：https://github.com/type-challenges/type-challenges/blob/main/README.md
+
+类型体操解答：https://ghaiklor.github.io/type-challenges-solutions/zh/
+
+
+
+## 2.8.ts知识拓展
+
+### 2.8.1.模块化
+
+**typescript中最主要使用的模块化方案是ES Module**
+
+### 2.8.2.非模块化
+
+* **ts认为什么是一个模块**
+
+  * JavaScript规范声明`任何没有export`的JavaScript`文件`都应该被认为是一个`脚本`，而`非一个模块`，ts亦是如此
+  * 在一个`脚本文件中`，`变量和类型`会被声明在共享的`全局作用域`，将多个输入文件合并成一个输出文件，或在HTML使用多个script标签加载这些文件
+    * 比如有10个脚本中，他们的作用域都是同一个，所以不能同名
+
+* **如果你有一个文件，现在没有任何import或者export，但是你希望它被作为模块处理，添加如下代码**
+
+  * ```javascript
+    export {}
+    ```
+
+* **这会把文件改成一个没有导出任何内容的模块，这个语法可以生效**
+
+### 2.8.3.内置类型导入
+
+* ts 4.5 也允许单独的导入， 你需要`使用type前缀`，`表明被导入的是一个类型`
+* 也可以不加
+* `使用type前缀的好处`是：可以让一个非typescript编译器比如：Babel、swc、esbuild知道什么样的导入可以被安全移除，`提高编译性能`
+
+```javascript
+import { type IPerson, type IInfo} from './type'
+const p1: IPerson = {name: 'zs',age: 19}
+```
+
+**导入多种类型**
+
+```javascript
+// 如果导入的是多种类型 也可将type写在最前面，表示导入的都是type
+import type { IPerson, IInfo } from './type'
+const p1: IPerson = {name: 'zs',age: 19}
+```
+
+### 2.8.4.命名空间(了解)
+
+* 命名空间是在ts早期的时候由于ES模块没有出来，所以定制了自己的模块化，就是命名空间
+* 但是由于ES模块已经拥有了命名空间的大部分特性，因此更推荐使用ES模块 
+* `官方推荐使用ES module 不推荐使用命名空间`
+
+```javascript
+namespace price {}
+namespace price {}
+```
+
+### 2.8.5.类型查询
+
+**`.d.ts`文件**
+
+* 这种文件是用来做类型的声明(declare)，称之为`类型声明(Type Declaration)` 或者 `类型定义(Type Definition)`文件
+* 它仅仅用来类型检测，告知typescript我们有哪些类型
+* `在这个文件中声明的类型 全局都可以使用`
+* 如果三方库或自己编写的代码，没有做类型声明，那么全局无法使用，会报错
+
+**typescript会在哪里查找类型声明**
+
+* 内置类型声明
+* 外部定义类型声明(三方库)
+* 自定义类型声明
+
+
+
+### 2.8.6. 声明文件使用场景
+
+**内置类型声明**
+
+* 是typescript自带的、帮助我们内置了JavaScript运行时的一些标准化的声明文件
+  * 包括比如：Function、String、Math等内置类型
+  * 也包括运行环境中的DOM API，如Window、Document等 
+
+**外部定义类型声明**
+
+* 外部类型声明通常是使用一些三方库时，需要的一些类型声明
+* 这些库通常有两种类型声明方式
+  * 方式一：在自己库中进行类型声明(编写.d.ts文件)
+  * 方式二：通过社区的一个`公有库Definitely Typed`存放类型声明文件
+* 如果三方库中既没有声明类型的文件，社区中也没有对应的文件，那么就需要自己手动写
+
+**自定义声明**
+
+* `平时使用`的代码中用到的类型，直接在`当前文件中进行定义`或者`在业务文件`夹某一个位置`编写类型`即可
+* 特殊情况下，需要在全局声明
+  * 假设在全局定义了一个变量yy，然后在别的文件中使用就会报错，这时候就需要在.d.ts文件中去声明这个变量
+
+### 2.8.7.declare 
+
+#### 2.8.7.1.声明模块
+
+**语法**
+
+` declare module '模块名'`
+
+可以自己声明模块，比如lodash这个模块不能使用的情况下，可以自己声明这个模块
+
+```typescript
+// 大括号表示此模块里有什么内容， 可加可不加
+// 加了 后续使用会有提示
+declare module "lodash" {
+    export function join(arg: any[]): any
+}
+```
+
+#### 2.8.7.2.声明文件
+
+* 比如在ts文件中使用import导入 一张图片或者其他文件，那么ts会报错，因为没有声明这个模块
+* 所以需要在.d.ts文件中声明
+
+```typescript
+// 声明文件模块
+// 告诉ts  所有以.jpg 的形式的都是模块
+// * 表示通配符
+declare module '*.jpg'
+
+// declear module '*.svg'
+
+```
+
+#### 2.8.7.3.声明命名空间
+
+* 如果是通过cdn的方式引入的文件，使用声明文件或声明模块，是不太合适的
+* 这时候可以使用声明命名空间
+
+```typescript
+declare namespace $ {
+    export function ajax(settings: any): any
+}
+```
+
+### 2.8.8.tsconfig文件
+
+* 作用一：让typescript compiler在编译的时候，知道如何去编译typescript代码和类型检测
+  * 比如是否允许不明确的this，是否允许隐式any
+  * 比如将代码编译成什么版本的js代码
+* 作用二：让编辑器(如vs code)，可以按照正确的方式识别ts代码
+  * 对语法进行提示、显示错误等
+
+**tsconfig文件的选项**
+
+官网：https://www.typescriptlang.org/tsconfig
+
+###  2.8.9.条件类型
+
+**Conditional Types**
+
+**语法**
+
+​	**SomeType `extends` OtherType  ?  TrueType  :  FalseType**
+
+
+
+**基本使用**
+
+```javascript
+type IDType = number
+
+//  判断IDType是否继承number类型
+// 表达式只能使用extends关键字
+// 也就是说只能判断继承不继承  不能IDType === number之类的操作符
+type resType = IDType extends number ? number : string
+
+//  举个栗子  函数的重载
+
+// function sum(num1: string, num2: string): string
+// function sum(num1: number, num2: number): number
+
+// 上面两个可以复用，只定义一个函数的重载
+
+// 这样写参数的类型虽然都要一样 但是写两个对象也可以
+// function sum<T>(num1: T, num2: T): T
+
+// 限制参数的类型,但是返回值是联合类型
+// function sum<T extends number | string>(num1: T, num2: T): T
+
+// 利用条件表达式判单返回类型
+function sum<T extends number | string>(
+  num1: T,
+  num2: T
+): T extends number ? number : string
+
+function sum(num1, num2) {
+  return num1 + num2
+}
+
+sum(1, 3)
+sum('abs', 'vsx')
+```
+
+### 2.8.10.在条件类型中推断（infer）
+
+* 条件类型中提供了`infer关键字`，可以从正在比较的类中推断类型，然后在true分支里引用该推断结果
+* infer 只能用于条件类型中
+
+```typescript
+type CalcFnType = (n1: number, n2: number) => number
+
+function foo() {
+  return 'avas'
+}
+
+// T extends (...args: any[]) => infer R ? R : never
+//  表示如果条件正确 返回 R
+// infer R  ：表示在条件类型中 会推断（infer自动推断）继承的后面函数类型的返回值类型 然后给 R
+// 可以将infer理解为占位符，当推断出来类型后，会将类型赋值给其后面跟着的符号
+
+// 自定义获取函数返回值类型工具
+type MyReturnType<T extends (...args: any[]) => any> = T extends (
+  ...args: any[]
+) => infer R
+  ? R
+  : never
+
+// 获取一个函数的返回值类型
+type CalcReturnType = MyReturnType<CalcFnType>
+type FooReturnType = MyReturnType<typeof foo>
+
+
+// 自定义获取函数参数类型工具
+type MyParameterType<T extends (...args: any[]) => any> =T extends (...args: infer A) => any ? A :never  
+
+
+type CalcFnType1 = (n1: number, n2: string) => any
+type CalcParamType =  MyParameterType<CalcFnType1>
+```
+
+### 2.8.11.条件类型中的分发类型
+
+**当在泛型中使用条件类型的时候，如果传入的是一个`联合类型`，就会变成`分发的(distributive)`**
+
+```typescript
+type toArray1<T> = T[]
+
+// 返回的类型是(number|string)[]
+type NumAndStrArr1 = toArray1<number | string>
+
+// 分发条件类型
+type toArray<T> = T extends any ? T[] : never
+
+// 返回的类型是string[] | number[]
+// 会将联合类型的每个类型进行一次调用toArray<>
+type NumAndStrArr = toArray<number | string>
+```
+
+## 2.9.ts内置工具
+
+### 2.9.1.Partial
+
+* 复制类型将其所有成员变成可选
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+// Partial 复制类型将其所有成员变成可选 (内置工具)
+type IKunOptional = Partial<IKun>
+
+// 自己实现
+type MyPartial<T> = {
+  [P in keyof T]?: T[P]
+}
+
+export {}
+
+```
+
+### 2.9.2.Required
+
+* 复制类型将其所有成员变成必选 
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+// Required 复制类型将其所有成员变成必选 (内置工具)
+type IKunOptional = Required<IKun>
+
+// 自己实现
+type MyRequired<T> = {
+  [P in keyof T]-?: T[P]
+}
+export {}
+
+```
+
+### 2.9.3.Readonly
+
+* 复制类型将其所有成员变成只读
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+// Readonly 复制类型将其所有成员变成只读 (内置工具)
+type IKunOptional = Readonly<IKun>
+
+// 自己实现
+type MyReadonly<T> = {
+  readonly [P in keyof T]: T[P]
+}
+export {}
+
+```
+
+### 2.9.4.Record
+
+*  返回一个对象类型 对象类型的键是遍历K得到的  键的类型是T
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+type t1 = '上海' | '土耳其' | '徐庄'
+
+// Record<K, T>  返回一个对象类型 对象类型的键是遍历K得到的  键的类型是T (内置工具)
+type IKunOptional = MyRecord<t1, IKun>
+
+// 自己实现
+type keys = keyof IKun // 会返回一个由IKun所有key组成的联合类型  name|age|slogan
+type res = keyof any // => string | number | symbol
+
+type MyRecord<K extends keyof any, T> = {
+  // 但是K必须满足条件 不是所有的类型都可以做对象的键  比如boolean类型就不可以
+  [P in K]: T
+}
+export {}
+
+```
+
+### 2.9.5.Pick
+
+* Pick<T, K> 从T中获取K属性  组成一个对象类型 
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+// Pick<T, K> 从T中获取K属性  组成一个对象类型 (内置工具)
+type IKunOptional = MyPick<IKun, 'name'>
+type IKunOptional = MyPick<IKun, 'name' | 'slogan'>
+
+// 自己实现
+type MyPick<T, K extends keyof T> = {
+  // 遍历 K  然后从T中获取每个K 对应的值
+  // 要限制K的值必须在T中都有
+  [P in K]: T[P]
+}
+
+export {}
+
+```
+
+### 2.9.6.Omit
+
+* Omit<T, K> 从T中去除K属性  组成一个对象类型 
+
+```typescript
+interface IKun {
+  name: string
+  age: number
+  slogan?: string
+}
+
+// Omit<T, K> 从T中去除K属性  组成一个对象类型 (内置工具)
+type IKunOptional = MyOmit<IKun, 'name'>
+
+type t = 'name' extends keyof IKun ? never : false
+// 自己实现
+type MyOmit<T, K extends keyof T> = {
+  [P in keyof T as P extends K ? never : P]: T[P]
+}
+```
+
+### 2.9.7.Exclude
+
+* Exclide<Union Type, ExcludedMembers>
+* 从Union Type联合类型里排除了ExcludedMembers的类型
+
+```typescript
+type t1 = 'name' | 'age' | 'height'
+
+// Exclude<T, K> 去除T中的K  (内置工具)
+type IKunOptional = MyExclude<t1, 'name'>
+
+// 自己实现
+// 核心是内容分发
+type MyExclude<T, U> = T extends U ? never : T
+```
+
+### 2.9.8.Extract
+
+* Extract<T, U> 从T中提取U 
+
+```typescript
+type t1 = 'name' | 'age' | 'height'
+
+// Extract<T, U> 从T中提取U (内置工具)
+type IKunOptional = MyExtract<t1, 'name' | 'age'>
+
+// 自己实现
+// 核心是内容分发
+type MyExtract<T, U> = T extends U ? T : never
+
+export {}
+
+```
+
+### 2.9.9.MyNonNullable
+
+* NonNullable<T> 去除T中的null或undefined
+
+```typescript
+type t1 = 'name' | 'age' | 'height' | null | undefined
+
+// NonNullable<T> 去除T中的null或undefined (内置工具)
+type IKunOptional = MyNonNullable<t1>
+
+// 自己实现
+// 核心是内容分发
+type MyNonNullable<T> = T extends null | undefined ? never : T
+
+export {}
+
+```
+
+### 2.9.10.required
+
+```typescript
+
+```
 
