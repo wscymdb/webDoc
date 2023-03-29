@@ -543,3 +543,517 @@ const server = http.createServer((req, res) => {
 })
 ```
 
+# 2.express
+
+## 2.1.安装
+
+**脚手架安装方式**
+
+```javascript
+安装脚手架
+npm i -g express-generator
+创建项目
+express projecr-name
+安装依赖
+npm install
+启动项目
+node bin/www
+```
+
+**手动配置**
+
+ 
+
+
+
+## 2.2.中间件
+
+* 中间件的本质是传递给express的一个回调函数
+* 这个回调函数接受三个函数
+  * 请求对象（request对象）
+  * 响应对象（response对象）
+  * next函数（在express中定义的用于执行下一个中间件函数）
+
+**中间件可以做什么**
+
+* 执行任何代码
+* 更改request和response对象
+* 结束请求-响应周期（返回数据）
+* 调用栈中的另一个请求 
+
+
+
+### 2.2.1自己编写中间件
+
+* express主要提供了两种方式
+  * app.use/router.use
+  * app.methods/router.methods
+  * methods指的是常用的请求方式，eg：app.get/app.post等
+
+
+
+**总结**
+
+* 当express接收到客户端发送的网络请求时，在所有的中间件中开始进行匹配
+* 当匹配到`第一个符合要求`的中间件时，那么就会`执行该中间件`
+* `后续`的中间件是`否会执行`，取决于上一个中间件是否调用`next方法`
+
+
+
+**通过use注册的中间件**
+
+```javascript
+// 总结：当express接收到客户端发送的网络请求时，在所有的中间件中开始进行匹配
+// 当匹配到第一个符合要求的中间件时，那么就会执行该中间件
+// 后续的中间件是否会执行，取决于上一个中间件是否调用next方法
+
+//通过use注册的中间件是最普通的 最简单的中间件
+// 通过use组册的中间件 无论什么请求方式都可以被匹配(只要请求了就能调用此中间件)
+app.use((req, res, next) => {
+  console.log('normal middle')
+})
+```
+
+
+
+**注册路径匹配的中间件**
+
+* 注册路径匹配要求的中间件
+* 路径匹配的中间件只对path进行限制，不会对method进行限制的
+
+```javascript
+app.use('/home', (req, res, next) => {
+  console.log('match /home middleware')
+  res.end('home data')
+})
+```
+
+
+
+**注册匹配请求方法和路径的中间件**
+
+```javascript
+// 注册中间件：对请求方式 和请求路径进行匹配
+// 使用 app.method(path,middleware)
+app.get('/home', (req, res, next) => {
+  console.log('match /home get middleware')
+  res.end('home data')
+})
+```
+
+
+
+**注册多个中间件**
+
+```javascript
+
+// 出了可以单独写多个中间件 还可以在一个中间件函数中写多个中间件
+// 后面的中间件是否运行 取决于上一个中间件调用next否
+app.get('/home', (req, res, next) => {
+  console.log('match /home get middleware1')
+  res.end('home data')
+},(req,res,next) => {
+  console.log('match /home get middleware2')
+},(req,res,next) => {
+  console.log('match /home get middleware3')
+})
+```
+
+### 2.2.2.express内置中间件
+
+**解析json类型数据**
+
+```javascript
+// 会将数据存放在body中
+app.use(express.json())
+
+app.post('/login', (req, res, next) => {
+  console.log(req.body)
+})
+```
+
+
+
+**解析x-www-form-urlencoded**
+
+```javascript
+// 会将数据存放在body中
+app.use(
+  express.urlencoded({
+    extended: false, //true：使用node内置的qs模块(默认)，但是这个模块慢慢被废弃了;false:使用querystring模块
+  })
+)
+
+// 编写中间件
+app.post('/login', (req, res, next) => {
+  console.log(req.body)
+  res.end('login api')
+})
+```
+
+### 2.2.3.三方中间件
+
+**morgan**
+
+* 将请求的日志记录下来
+
+```javascript
+// 应用第三方中间件
+// 会将每次请求的记录放在目标路径文件中
+const writeStream = fs.createWriteStream('./logs/access.log')
+app.use(moragan('combined', { stream: writeStream }))
+```
+
+**multer**
+
+解析文件
+
+```javascript
+// 应用一个三方 的中间件处理文件上传
+const upload = multer({
+  // 用这种方式可以自定义后缀名
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
+      cb(null, './uploads')
+    },
+    filename(req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname)
+    },
+  }),
+})
+
+// 编写中间件
+// 上传单文件
+// upload.single() 会返回一个中间件,处理但文件  参数是客户端文件对应的key   eg；avatar：files
+app.post('/upload', upload.single('avatar'), (req, res, next) => {
+  console.log(req.file)
+  // 如果上传的既有文件又有字段 那么字段会被放入到req.body中
+  console.log(req.body)
+  res.end('文件上传成功')
+})
+
+// 上传多文件
+app.post('/photos', upload.array('photos'), (req, res, next) => {
+  console.log(req.files)
+  res.end('上传多张照片完成')
+})
+```
+
+## 2.3.解析动态路由
+
+```javascript
+// 编写中间件
+app.get('/test/:id', (req, res, next) => {
+  const id = req.params.id
+  res.end(`获取id${id}`)
+})
+```
+
+## 2.4.响应数据的方式
+
+* res.end()
+* res.json()
+  * json方法可以传入很多类型：object、array、string、boolean、number、null等，他们会被转换成json格式返回
+* res.status()
+  * 用于设置状态码
+* https://www.expressjs.com.cn/4x/api.html#res
+
+```javascript
+// 编写中间件
+app.get('/test', (req, res, next) => {
+  // 返回数据的方式
+  // res.end(),方法用的比较少
+  //res.end('test api')
+
+  // res.json(),用的做多
+  // res.json({ code: 0, msg: 'success', data: 222 })
+
+  // 用于设置http的状态吗
+  res.status(200)
+  res.end('创建用户成功')
+})
+```
+
+## 2.5.路由
+
+* 一个`Router实例`拥有`完整的中间件和路由系统`
+* 因此，他也`被称为mini的app`（可以用app的功能）
+* 开发中可以讲每个路由对象单独放在一个文件中
+
+```javascript
+const express = require('express')
+
+const app = express()
+
+// 将用户的接口定义在单独的路由对象中
+// 每个路由都可以看作是一个迷你的app 可以使用app的方法（get\post...）
+const userRouter = express.Router()
+userRouter.get('/', (req, res, next) => {
+  res.json('你好')
+})
+userRouter.delete('/:id', (req, res, next) => {})
+userRouter.post('/', (req, res, next) => {})
+userRouter.patch('/:id', (req, res, next) => {})
+
+// 歌词路由
+const lryicRouter = express.Router()
+lryicRouter.get('/', (req, res, next) => {
+  res.json('你好')
+})
+lryicRouter.delete('/:id', (req, res, next) => {})
+
+// 使用路由
+// 当path是users的时候才会执行userRouter中间件
+app.use('/users', userRouter)
+app.use('/lryic', lryicRouter)
+// 监听端口
+app.listen(8888, () => {
+  console.log('8888端口监听成功')
+})
+```
+
+## 2.6.静态资源服务器
+
+* 可以添加多个静态资源
+* 当在浏览器输入域名+端口时  默认去找 index.html 如果没有就静态资源文件夹中找(默认去最先添加的静态资源文件夹中找)
+
+```javascript
+const app = express()
+// 部署静态资源
+// 可以添加多个
+// 当在浏览器输入域名+端口时  默认去找 index.html 如果没有就静态资源文件夹中找(默认去最先添加的静态资源文件夹中找)
+//
+app.use(express.static('./uploads'))
+
+// 监听端口
+app.listen(8888, () => {
+  console.log('8888端口监听成功')
+})
+```
+
+## 2.7.处理错误的中间件
+
+* 一共有4个参数
+* `第一个err是调用next传来的参数`
+
+```javascript
+app.post('/test', (req, res, next) => {
+  const { username, password } = req.body
+  if (!username || !password) {
+    next(-1001)
+  } else {
+    res.end('test api')
+  }
+})
+
+// 使用错误处理的中间件
+// err 是当调用next传入的参数
+app.use((err, req, res, next) => {
+  const code = err
+  let message = 'unknow error'
+  switch (code) {
+    case -1001:
+      message = '没有输入用户名或密码'
+      break
+    case -1002:
+      message = '用户名或密码错误'
+      break
+  }
+  res.json({
+    code,
+    msg: message,
+  })
+})
+```
+
+# 3.koa
+
+* 事实上，koa是express同一个团队开发的一个新的Web框架
+  * 目前团队的核心开发者TJ的主要精力也在维护Koa，express已经交给团队维护了
+  * Koa旨在为Web应用程序和API提供`更小、更丰富和更加强大的功能`
+  * 相对于express具有`更强的异步处理能力`
+  * Koa的`核心代码只有1600+行`，是一个`更加轻量级的框架`
+  * 我们`可以根据需要安装和使用中间件`
+
+## 3.1.koa基本使用
+
+```javascript
+const Koa = require('koa')
+
+// 创建app对象
+const app = new Koa()
+
+// 注册中间件
+app.use((ctx, next) => {
+  ctx.body = 123
+})
+
+app.listen(8888, () => {
+  console.log('8888端口监听成功')
+})
+```
+
+## 3.2.中间件
+
+* koa注册的中间件提供了两个参数`ctx和next`
+* ctx：上下文(context)对象
+  * koa并没有像express一样，将req和res分开，而是将他们作为ctx的属性
+  * ctx代表一次请求的上下文对象
+  * ctx.request：获取请求对象
+  * ctx.response：获取响应对象 
+* ctx`有两个请求对象和两个响应对象`
+  * ctx.request：koa自己封装的
+  * ctx.req：node封装的
+  * ctx.response：koa自己封装的
+  * ctx.res：node封装的
+* next: 本质上是一个dispatch，类似于express的next
+
+```javascript
+app.use((ctx, next) => {
+  // ctx.req  ctx.res  这是node封装的
+  // ctx.request ctx.response 这是koa封装的
+  // 所以可以 ctx.res.end() ...
+  console.log(ctx)
+
+  ctx.body = 23
+})
+```
+
+## 3.3.区分请求方式和路径
+
+* koa创建的app对象，注册中间件`只能使用use方法`
+  * koa并`没有提供methods的方式来注册中间件`（eg：app.get()...）
+  * 也`没有提供path中间件来匹配路径`（eg：app.use('/login',fn)）
+* koa中区分路径和method分方式
+  * `方式一：根据request自己来判断`
+  * `方式二：使用第三方路由中间件`
+
+### 3.3.1.手动区分
+
+```javascript
+app.use((ctx, next) => {
+  console.log(ctx)
+  const path = ctx.path
+  if (path === '/users') return (ctx.body = 'users')
+
+  ctx.body = 'network'
+})
+```
+
+### 3.3.2.路由中间件
+
+* 有两个流行的路由中间件，都可以使用，都需要下载使用
+  * koa-roter  三方开发的，很久没有维护了
+  * koajs/router 官方开发的
+
+```javascript
+const Koa = require('koa')
+const KoaRouter = require('@koa/router')
+
+const app = new Koa()
+
+// 创建路由对象
+// prefix 路由前缀 和express的 app.use('/users', userRouter)同理
+const userRouter = new KoaRouter({ prefix: '/users' })
+
+// 注册路由
+userRouter.get('/', (ctx, next) => {
+  ctx.body = 'users  get'
+})
+userRouter.delete('/:id', (ctx, next) => {
+  ctx.body = 'users  delete'
+})
+
+// 使用路由 使用userRouter.routes() 将会返回所有注册的路由
+app.use(userRouter.routes())
+
+// koa中 当匹配不到请求的时候 都是会返回 not found的
+// 但是对于没有注册的路由 也返回not found给开发者的提示不友好
+// 用下面的方法 则会告诉用户错误的原因 Method Not Allowed
+app.use(userRouter.allowedMethods())
+```
+
+## 3.4.参数解析方式
+
+### 3.4.1.query和params
+
+* 这两种参数类型一般都是get请求方法的
+* 路由中已经封装好了的
+* 分别放在`ctx.params`和`ctx.query`中
+
+```javascript
+// query
+userRouter.get('/', (ctx) => {
+  const query = ctx.query
+  console.log(query)
+  ctx.body = JSON.stringify(query)
+})
+
+// json格式解析body的信息 需要借助中间件（koa-bodyparser）
+userRouter.post('/', (ctx) => {
+  // 数据在ctx.request.body中
+  console.log(ctx.request.body)
+
+  ctx.body = 123
+})
+
+```
+
+### 3.4.2.json和urlencoded
+
+* 这两种方式需要借助三方中间件（koa-bodyparser）
+* 需要安装
+* `npm i koa-bodyparser`
+
+```javascript
+// json格式解析body的信息 需要借助中间件（koa-bodyparser）
+userRouter.post('/', (ctx) => {
+  // 数据在ctx.request.body中
+  console.log(ctx.request.body)
+
+  ctx.body = 123
+})
+
+// urlencoded格式解析信息 需要借助中间件（koa-bodyparser）
+userRouter.post('/urlencoded', (ctx) => {
+  // 数据在ctx.request.body中
+  console.log(ctx.request.body)
+
+  ctx.body = 234
+})
+```
+
+### 3.4.3.formdata
+
+* 需要借助三方中间件（@koa/multer和multer）
+* `npm i @koa/multer  multer`
+
+**非文件上传**
+
+```javascript
+// formdata格式的解析 需要借助中间件（@koa/multer和multer）
+userRouter.post('/formdata', formParser.any(), (ctx) => {
+  console.log(ctx.request.body)
+  ctx.body = 345
+})
+```
+
+
+
+**文件上传**
+
+* 用法和express的multer一样
+* 这里列举一个
+
+```javascript
+
+const formdata = new multer({ dest: './uploads' })
+
+// 注册路由
+const userRouter = new KoaRouter({ prefix: '/upload' })
+userRouter.post('/', formdata.single('img'), (ctx, next) => {
+  ctx.body = 'upload done'
+})
+
+```
+
