@@ -322,7 +322,7 @@ readStream.on('open', (fd) => {
   console.log('通过流将文件打开！', fd)
 })
 
-// end事件
+// end事件 必须要监听data事件
 readStream.on('end', () => {
   console.log('读取文件结束')
 })
@@ -1057,3 +1057,204 @@ userRouter.post('/', formdata.single('img'), (ctx, next) => {
 
 ```
 
+## 3.5.静态服务器
+
+* koa没有内置相关功能，需要使用三方库
+* **npm install koa-static**
+* 使用过程类似express
+
+```javascript
+const static = require('koa-static')
+
+// 创建服务器
+const app = new Koa()
+
+// 设置静态资源
+app.use(static('./uploads'))
+```
+
+## 3.6.响应数据类型
+
+* koa中响应数据主要是ctx.body
+
+* ctx.body允许的**类型**
+
+  * string
+
+  * Buffer
+
+  * Stream
+
+  * Object || Array
+
+  * null
+  * 如果`response.status尚未设置`，Koa会`自动设置`成200或204(返回值是null的时候)
+
+* 也可以`手动设置状态码`
+  * ctx.status = number
+
+## 3.7.处理错误
+
+* koa中处理错误和express中有点区别
+* 因为koa中的next是不接受参数的
+* 所以采用是事件发射和事件监听的方式
+
+```javascript
+// 注册路由
+const userRouter = new KoaRouter({ prefix: '/users' })
+userRouter.get('/', (ctx, next) => {
+  const isAutho = false
+  if (isAutho) {
+    ctx.body = 'user get'
+  } else {
+    // 这里可以拿 创建服务的app对象 也可以拿ctx.app 他们俩是一样的
+    // 但是如过每个路由对象被放在不同的文件夹中获取app还要传来传去，所以使用ctx.app方便
+    // app本身是一个EventEmitter，所以可以发射自定义事件
+    // 行业规范 错误的事件 发射error 当然可以不遵循
+    // 要把当前的ctx传入 不然没法响应数据
+    ctx.app.emit('error', -10001, ctx)
+  }
+})
+
+// 真实开发中 可以把错误处理 单独抽到一个文件
+// 那么就需要导出app 在处理错误文件中导入app
+// 因为app是一个EventEmitter 所以可以监听事件
+app.on('error', (code, ctx) => {
+  const errCode = code
+  let message = 'unknow error ~'
+  switch (errCode) {
+    case -10001:
+      message = '未授权'
+      break
+  }
+  ctx.body = {
+    code: errCode,
+    message,
+  }
+})
+```
+
+# 4.koa和express区别
+
+## 4.1.架构设计上来说
+
+* express是完整和强大的，其中帮我们内置了很多非常好用的功能
+* koa是简洁和自由的，他只包含了最核心的功能，并不会对我们使用中间件进行任何限制
+  * 甚至是在app中连最基本的get、post都没有提供
+  * 我们需要通过自己或者路由来判断请求方式或其它功能
+
+## 4.2.中间件的区别
+
+* express和koa框架他们的核心都是中间件
+  * 但是他们的中间件执行机制是不同的，特别是针对某个中间件中包含异步操作时
+
+**koa和express同步执行**
+
+* 由于`两者同步执行代码的顺序是一样的`，案例中使用的是`koa`的代码
+
+* 先执行第一个中间件如果该中间件调用了next，那么就会执行第二个中间件
+* 如果第二个中间件也调用了next 那么就会执行第三个中间件
+* 然后当第三个中间件内容执行完毕后，在执行第二个中间件next之后的代码（如果有的话）
+* 最后执行第一个中间件next之后的代码（如果有的话）
+* 这种执行顺序的过程叫做`洋葱模型`
+  * `express执行同步代码`的时候`符合洋葱模型`，异步的时候不符合
+  * `koa同步异步都符合`
+
+```javascript
+app.use((ctx, next) => {
+  console.log('koa middleware01')
+  next()
+  ctx.msg += 'aaa'
+  ctx.body = ctx.msg // undefinedcccbbbaaa
+})
+app.use((ctx, next) => {
+  console.log('koa middleware02')
+  next()
+  ctx.msg += 'bbb'
+})
+app.use((ctx, next) => {
+  console.log('koa middleware03')
+  ctx.msg += 'ccc'
+})
+
+// 监听
+app.listen(8888, () => {
+  console.log('8888端口监听成功')
+})
+```
+
+**koa和express异步执行**
+
+* express的异步执行
+
+```javascript
+// 异步代码
+// 如果想要在第一个中间件中返回第三个中间件中异步处理后处理的结果
+// express中很难办到，机制如此
+// 那么只能在第三个中间件中等到结果后 在第三个中间件中返回结果
+// 而不能在第一个中间件中返回异步处理后的结果x
+
+// 如果像koa一样在每个中间件的next添加一个await呢
+// express的next返回值是void koa中返回值是Promise<any>
+// 所以这也就决定了 express即使在next前面加await 也没有用
+
+// 编写中间件
+app.use((req, res, next) => {
+  console.log('express middleware01')
+  req.msg = 'aaa'
+  next()
+  // res.json(req.msg) // aaabbbccc
+})
+app.use((req, res, next) => {
+  console.log('express middleware02')
+  req.msg += 'bbb'
+  next()
+})
+app.use(async (req, res, next) => {
+  console.log('express middleware03')
+
+  // 异步代码
+  const data = await axios.get(
+    'http://180.76.235.241:3000/search?keywords=海阔天空'
+  )
+  req.msg += data.data.result.songs[0].name
+  res.json(req.msg)
+})
+```
+
+* koa的异步执行
+
+```javascript
+// 异步代码
+// 默认情况下 如果next之后的代码中有异步操作，koa是不会等待异步结果出来的 而是直接执行下一步
+
+// 解决  koa中的解决方案很简单
+// 只需要在next 前面加 await即可
+// 那么当前的中间件就变成了异步函数 那么上一个中间件要想等到当前中间件的结果
+// 上一个中间件也要在next前面加await
+
+app.use(async (ctx, next) => {
+  console.log('koa middleware01')
+  ctx.msg = 'aaa'
+  await next()
+  ctx.body = ctx.msg // aaabbb海阔天空
+})
+app.use(async (ctx, next) => {
+  console.log('koa middleware02')
+  ctx.msg += 'bbb'
+
+  await next()
+})
+app.use(async (ctx, next) => {
+  console.log('koa middleware03')
+
+  // 异步代码
+  const res = await axios.get(
+    'http://180.76.235.241:3000/search?keywords=海阔天空'
+  )
+
+  ctx.msg += res.data.result.songs[0].name
+})
+```
+
+## 4.3.洋葱模型
