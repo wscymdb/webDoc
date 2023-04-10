@@ -574,3 +574,235 @@ ADD
     FOREIGN KEY(singer_id) REFERENCES t_singer(id) ON UPDATE CASCADE ON DELETE CASCADE;
 ```
 
+### 3.10.4.多表查询
+
+**默认查询结果**
+
+* 如果直接查询两张表，数据会有很多没有的数据
+
+* 因为默认多表查询会用第一张表格的每一条数据与第二张表格的全部数据匹配一次
+
+* 这个结果称之为`笛卡尔乘积`，也称为`直积`，表示位`X*Y`
+
+* ```sql
+  SELECT * FROM t_songs, t_singer;
+  ```
+
+**用where条件筛选**
+
+* 那么如果查询完毕使用where条件进行筛选呢
+
+* 我们会发现查询的结果并不正确
+
+* 这是因为不能确保第一张表的每条数据的外键（可能为null）都能与第二张表中匹配
+
+* ```sql
+  SELECT * FROM t_songs, t_singer WHERE t_songs.singer_id = t_singer.id;
+  ```
+
+#### 3.10.4.1.多表之间的连接
+
+* 上面两种方式的效果并不是我们想要的效果，这时候可以使用SQL JOIN(连接)操作
+* **左连接、右连接、内连接、全连接**
+
+
+
+**左连接**
+
+* 如果我们希望`获取到的是左边的所有数据（以左表为准）`
+* 这个时候就表示无论左边的表是否有对应的singer_id的值对应右边表的id，左边的数据都会被查询出来
+* 这个也是开发中使用最多的情况
+* **LEFT [OUTER] JOIN  OUTER可以省略**
+
+```sql
+-- 左连接
+SELECT * FROM 左表 LEFT JOIN 右表 ON 连接条件;
+-- eg:SELECT * FROM t_songs LEFT JOIN t_singer ON t_songs.singer_id = t_singer.id;
+```
+
+* 还有两种左连接的查询（用的不多）
+
+```sql
+-- 左连接,查询左边和右边没有交集的数据
+SELECT * FROM t_songs LEFT JOIN t_singer ON t_songs.singer_id = t_singer.id WHERE t_singer.id IS NULL;
+
+-- 左连接,查询左边和右边有交集的数据
+SELECT * FROM t_songs LEFT JOIN t_singer ON t_songs.singer_id = t_singer.id WHERE t_singer.id IS NOT NULL;
+```
+
+**右连接**
+
+* 如果我们希望`获取到的是右边的所有数据（以右表为准）`
+* 这个时候就表示无论右边的表是否有对应的id的值对应左边表的singer_id，右边的数据都会被查询出来
+* **RIGHT [OUTER] JOIN  OUTER可以省略**
+
+```sql
+-- 右连接
+SELECT * FROM 左表 RIGHT JOIN 右表 ON 连接条件;
+-- eg:SELECT * FROM t_songs RIGHT JOIN t_singer ON t_songs.singer_id = t_singer.id;
+```
+
+* 还有两种右连接的查询（用的不多）
+
+```sql
+-- 右连接,查询左边和右边没有交集的数据
+SELECT * FROM t_songs RIGHT JOIN t_singer ON t_songs.singer_id = t_singer.id WHERE t_songs.singer_id IS NULL;
+
+-- 右连接,查询左边和右边有交集的数据 where之后的条件不一定是下面案例的 灵活应变即可
+SELECT * FROM t_songs RIGHT JOIN t_singer ON t_songs.singer_id = t_singer.id WHERE t_songs.singer_id IS NOT NULL;
+```
+
+**内连接**
+
+* 内连接表示左边的表和右边的表都有对应的数据关联
+* **写法：CORSS JOIN 或者 INNER JOIN 或者 JOIN 都行**
+
+```sql
+-- 内连接
+SELECT * FROM t_songs JOIN t_singer ON t_songs.singer_id = t_singer.id;
+```
+
+**全连接**
+
+* 虽然SQL规范中有全连接但是MySQL中没有实现全连接
+* MySQL需要借助`UNION`来实现全连接
+* 本质上就是让左连接和右连接联合在一起
+
+```sql
+-- 全连接
+(SELECT * FROM t_songs LEFT JOIN t_singer ON t_songs.singer_id = t_singer.id) UNION (SELECT * FROM t_songs RIGHT JOIN t_singer ON t_songs.singer_id = t_singer.id)
+```
+
+### 3.10.5.多对多表的查询
+
+* 现有学生表student和选课表course
+* 每个学生可以选择多个课程，每个课程也可以被多个学生所选择
+* 基于这种情况，通常会`创建一个关系表来存放学生选课和课程的关系`
+* **那么查询的时候就会用到多对对表的查询了**
+
+**表的创建**
+
+```sql
+-- 创建学生表
+CREATE TABLE
+    IF NOT EXISTS student(
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(15) NOT NULL,
+        age INT DEFAULT 18,
+        update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+
+INSERT INTO student(name) VALUES ('小明'), ('小红'), ('小张'), ('小丽'), ('小李'), ('小赵');
+
+-- 创建课程表
+CREATE TABLE
+    IF NOT EXISTS course(
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(20) NOT NULL,
+        score DOUBLE NOT NULL,
+        update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+
+INSERT INTO
+    course(name, score)
+VALUES ('篮球', 2), ('足球', 2), ('排球', 1), ('太极', 1), ('羽毛球', 2), ('游泳', 1);
+
+-- 创建学生选择课程的关系表
+CREATE TABLE
+    IF NOT EXISTS student_select_course(
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        student_id INT NOT NULL,
+        course_id INT NOT NULL,
+        Foreign Key (student_id) REFERENCES student(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        Foreign Key (course_id) REFERENCES course(id) ON UPDATE CASCADE ON DELETE CASCADE
+    );
+
+-- 选课的过程
+INSERT INTO
+    student_select_course(student_id, course_id)
+VALUES (1, 1), (1, 3), (3, 2), (3, 3), (3, 4);
+```
+
+**查询所有的学生的课程**
+
+```sql
+-- 查询所有选课的学生选择的所有课程--内连接 (只查询了有选课的学生和选课的对应关系，内连接的特点)
+-- 下面用别名的方式 简化代码
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name couName,
+    cs.score csScore
+FROM student AS stu
+    JOIN student_select_course AS ssc ON stu.id = ssc.student_id
+    JOIN course AS cs ON cs.id = ssc.course_id;
+
+-- 查询所有的学生选择的所有课程--左连接 (即使没有选课的学生也会被查询)
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name couName,
+    cs.score csScore
+FROM student AS stu
+    LEFT JOIN student_select_course AS ssc ON stu.id = ssc.student_id
+    LEFT JOIN course AS cs ON cs.id = ssc.course_id;
+```
+
+**查询单个学生的课程**
+
+* 查询的时候`最好用左连接`，因为查询的是学生选课情况，即使有的学生没有选课也会被查出来
+
+```sql
+-- 查询小明(id是1)选择了哪些课程
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name courseName,
+    cs.score coureScore
+FROM student stu
+    JOIN student_select_course ssc ON stu.id = ssc.student_id
+    JOIN course cs ON cs.id = ssc.course_id
+WHERE stu.id = 1;
+
+-- 查询小赵(id是6)选择了哪些课程，这里必须用左连接，小赵没有选课，内连接查不出来(内连接的特性决定)
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name courseName,
+    cs.score coureScore
+FROM student stu
+    LEFT JOIN student_select_course ssc ON stu.id = ssc.student_id
+    LEFT JOIN course cs ON cs.id = ssc.course_id
+WHERE stu.id = 6;
+```
+
+**查询哪些学生和哪些课程没被选择**
+
+```sql
+-- 查询哪些学生没有选择课程
+-- 使用的是左连接 那么student一定都会被查出来，那么只要判断course.id是null就带表这些学生一定没有选择课程
+
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name courseName,
+    cs.score coureScore
+FROM student stu
+    LEFT JOIN student_select_course ssc ON stu.id = ssc.student_id
+    LEFT JOIN course cs ON cs.id = ssc.course_id
+WHERE cs.id IS NULL;
+
+-- 查询哪些课程没有被选过
+-- 因为查询的主体是课程，那么要确保课程都被查出来，这里使用右连接，所以判断student.id是null(课程没有对应的学生)就代表这些课程没有被选择过
+
+SELECT
+    stu.name stuName,
+    stu.age stuAge,
+    cs.name courseName,
+    cs.score coureScore
+FROM student stu
+    RIGHT JOIN student_select_course ssc ON stu.id = ssc.student_id
+    RIGHT JOIN course cs ON cs.id = ssc.course_id
+WHERE stu.id IS NULL;
+```
+
