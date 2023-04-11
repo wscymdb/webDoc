@@ -806,3 +806,135 @@ FROM student stu
 WHERE stu.id IS NULL;
 ```
 
+## 3.11.转化查询结果格式
+
+* 在SQL中查询出来的结果虽然是以表格显示出来的，但是`其本质是一个对象数组`
+
+### 3.11.1.转换为对象
+
+* 单表查询中没什么问题，但是`多表查询会将所有的字段放在一起，这样数据结构是不太清晰的`
+
+* ```sql
+  [
+    {
+    	name:'青花瓷',
+    	duration:300,
+    	score:4.5,
+    	singer:'周杰伦',
+    	name(1):'我是周杰伦',
+    	age:18
+    }
+  ]
+  -- 上面的结构会将所有的信息放在一个对象中，数据太过于混乱
+  -- 希望像下面的方式存储
+  [
+    {
+    	name:'青花瓷',
+    	duration:300,
+    	score:4.5,
+    	info: {
+      	name:'周杰伦',
+        intro:'我是周杰伦',
+        age:18
+    	}
+    }
+  ]
+  ```
+
+* 这时候可以用MySQL的聚合函数`JSON_OBJECT(key1,val1,key2,val2,...)`
+
+* 可以将查询到的数据单独放在一个对象中
+
+* ```sql
+  SELECT
+      t_songs.id as id,
+      t_songs.name as name,
+      t_songs.score as score,
+      JSON_OBJECT('name',t_singer.name,'intro',t_singer.intro) as singer_info
+  FROM t_songs
+      LEFT JOIN t_singer ON t_songs.singer_id = t_singer.id;
+  ```
+
+### 3.11.2.转换为数组
+
+* 上面说到直接查询到的结果就是数组，那么为什么这里还要在转成数组呢
+
+* 看一下案例
+
+* 当多对多查询的时候会出现下面的数据结构
+
+* ```sql
+  -- 查询所有学生的选课情况
+  -- 这样的数据结构会很混乱，小明选择了两门课程，但是会出现两个对象，不仅数据混乱而且浪费空间
+  [
+    {
+    	name: '小明',
+    	age: 18,
+    	name(1):'篮球',
+    	score:2
+    },
+    {
+    	name: '小明',
+    	age: 18,
+    	name(1):'足球',
+    	score:1
+    }
+  ]
+  -- 希望的格式
+  [
+    {
+    	name: '小明',
+    	age: 18,
+    	course: [
+        {
+        	name: '篮球',
+        	score:2
+        },
+         {
+        	name: '足球',
+        	score:1
+        },
+      ]
+    },
+  ]
+  ```
+
+* 这时候要使用MySQL的内聚函数`JSON_ARRAYAGG`和`JSON_OBJECT`配合使用
+
+  * `JSON_ARRAYAGG(xxx)` 聚合函数会将所有所有入参的只变成一个数组
+
+  * ```sql
+    -- 会将所有的cs.name的值变成一个数组存放
+    -- ["篮球", "排球", "足球", "排球", "太极"]
+    SELECT
+        stu.id as id,
+        stu.name as name,
+        stu.age as age,
+        JSON_ARRAYAGG(cs.name) as course
+    FROM student as stu
+        LEFT JOIN student_select_course as ssc ON stu.id = ssc.student_id
+        LEFT JOIN course as cs ON cs.id = ssc.course_id
+    WHERE cs.id IS NOT NULL;
+    ```
+
+  * 
+
+* 而且要使用`GROUP BY` 因为默认情况下查询出来的结果会放在一个分组中，这样查询的结果是不对的
+
+* ```sql
+  SELECT
+      stu.id as id,
+      stu.name as name,
+      stu.age as age,
+      JSON_ARRAYAGG(
+          JSON_OBJECT('id', cs.id, 'name', cs.name, 'score', cs.score
+          )
+      ) as course
+  FROM student as stu
+      LEFT JOIN student_select_course as ssc ON stu.id = ssc.student_id
+      LEFT JOIN course as cs ON cs.id = ssc.course_id
+  WHERE cs.id IS NOT NULL
+  GROUP BY stu.id;
+  ```
+
+* 
