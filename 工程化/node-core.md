@@ -1258,3 +1258,130 @@ app.use(async (ctx, next) => {
 ```
 
 # 5.MySQL-node中使用
+
+## 5.1.数据库驱动
+
+* 要在Node连接MySQL，执行SQL语句可以借助以下两个库
+* **mysql**：最早的Node连接MySQL的数据库驱动，现在不在维护了
+* **mysql2**：在mysql的基础之上，进行了很多的优化、改进
+* 推荐使用mysql2
+  * mysql2兼容mysql，并且提供了一些附加功能
+  * 更快、更好的性能
+  * Prepared Statement （预编译语句）
+  * 支持promise
+
+## 5.2.mysql2的使用
+
+**安装**
+
+```
+npm install mysql2
+```
+
+**基本使用**
+
+```javascript
+const mysql = require('mysql2')
+
+// 建立连接
+const connection = mysql.createConnection({
+  host: 'localhost',
+  database: 'jack',
+  port: 3306,
+  user: 'root',
+  password: 'qwerty123',
+})
+
+// 执行操作语句，操作数据库
+const statment = `SELECT * FROM student`
+
+connection.query(statment, (err, values, fields) => {
+  if (err) throw err
+  console.log(values)
+  console.log(fields)
+  
+   // 销毁连接
+  connection.destroy()
+})
+```
+
+## 5.3.mysql2特性-Prepared Statement
+
+* prepared statement(预编译语句)
+* 为什么要使用预编译语句
+* **提高性能**
+  * 数据库接收到SQL语句都要经过`解析、优化、转化`三个步骤才能被执行，如果有很多客户端同时使用这一条SQL语句，那么这条SQL就会重复很多遍，会损耗性能
+  * 如果使用预编译语句，会将创建的语句模版发送给MySQL，然后MySQL编译（解析、优化、转换）语句模版，`并且存储它，但是不执行`，之后当传递给`？`真正的值的时候才会执行，就算同时有很多客户端连接，那么也只会编译`？`前的语句`一次`，因为已经将编译好的模版存储起来了,所以性能是更高的
+* **防止SQL注入**
+  * 使用预编译，而其后注入的参数将不会再进行SQL编译。也就是说其后注入进来的参数系统将不会认为它会是一条SQL命令，而默认其是一个参数，参数中的or或者and 等就不是SQL语法关键字了，而是被当做纯数据处理
+
+```javascript
+// 执行操作语句，操作数据库
+// 使用 ? 占位符
+const statment = `SELECT * FROM student WHERE id < ? AND name = ?`
+
+// 使用预处理语句 不能使用query了 query表示执行的是普通语句
+// 要使用execute()
+// 使用[]存放占位符真正的数据
+connection.execute(statment, [4, '小明'], (err, values) => {
+  if (err) throw err
+  console.log(values)
+  
+   // 销毁连接
+  connection.destroy()
+})
+```
+
+## 5.4.mysql2特性- Connection Pools
+
+* 当使用数据库直接连接的时候（上面创建的单个连接）
+  * 会经过 1建立连接、2操作数据库、3关闭连接三个步骤
+  * 在业务量不大的时候，并发量也不大的时候单个连接没啥问题
+  * 但是当并发量大起来，达到百级、千级甚至更高的时候，其中建立连接、关闭连接的操作都会造成性能瓶颈，这时候就要考虑使用连接池来优化1和3步骤
+* 好在，mysql2给我们提供了`连接池(connection pools)`
+  * 连接池可以`在需要的时候自动创建连接`，并且创建的`连接不会被销毁`，`会放入连接池中`，后续可以继续使用
+  * 可以在创建连接池的时候设置LIMIT，设置最大创建个数
+
+```javascript
+const mysql = require('mysql2')
+
+// 建立连接池
+const pool = mysql.createPool({
+  host: 'localhost',
+  database: 'jack',
+  user: 'root',
+  password: 'qwerty123',
+  connectionLimit: 8, // 连接池连接的最大数量
+})
+
+// 执行操作语句，操作数据库
+// 使用 ? 占位符
+const statment = `SELECT * FROM student WHERE id < ? AND name = ?`
+
+// 使用预处理语句 不能使用query了 query表示执行的是普通语句
+// 要使用execute()
+// 使用[]存放占位符真正的数据
+pool.execute(statment, [4, '小明'], (err, values) => {
+  if (err) throw err
+  console.log(values)
+})
+```
+
+## 5.5.Promise的形式
+
+* 只需在调用执行语句前，调用promise()即可实现promise的返回结果
+* promise的返回结果是一个数组，`[values,fields]`，第一项是查询的值，第二项是查询的字段
+
+```javascript
+// 执行操作语句，操作数据库
+// 使用 ? 占位符
+const statment = `SELECT * FROM student WHERE id < ? AND name = ?`
+
+pool
+  .promise()
+  .execute(statment, [5, '小明'])
+  .then((res) => {
+    console.log(res[0])
+  })
+```
+
