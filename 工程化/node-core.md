@@ -1716,3 +1716,179 @@ userRouter.get('/list', (ctx, next) => {
 })
 ```
 
+# 7.跨域问题
+
+## 7.1.什么是跨域
+
+* 想要理解什么是跨域，**先理解浏览器的同源策略**
+  * **同源策略**是一个重要的安全策略，它用于限制一个源资源如何能与另一个源的资源进行交互。它能帮助阻隔恶意文档，减少可能被攻击的媒介。
+  * 如果两个URL的`端口(port)、协议(protocol)和主机(host)都相同`的话，则这两个URL是`同源`，可以相互访问资源
+  * 这个方案也被称为`‘协议/主机/端口元组’`，或者直接是`’元组‘`
+* **事实上跨域的产生和前后端分离的发展有很大的关系**
+  * 早起的服务端渲染的时候，是没有跨域的问题的
+  * 随着前后端分离，目前前端开发的代码和服务器开发的API接口往往是分离的，甚至部署在不同的服务器上
+*  **这个时候我们就会发现，访问 静态资源服务器 和 API接口服务器 很有可能不是同一个服务器或者不是同一个端口。**
+  * 浏览器发现静态资源和API接口(XHR、Fetch)请求不是来自同一个地方时(同源策略)，就产生了跨域。
+
+## 7.2.解决方案
+
+**常见方案**
+
+* 方案一：静态资源和API部署在同一个服务器中
+* 方案二：`CORS`(跨域资源共享)
+* 方案三：`node代理服务器`（webpack中就是它）
+* 方案四：`Nginx反向代理`
+
+**不常见方案**
+
+* jsonp
+* postMessage
+* websocket
+* ...
+
+## 7.3.CORS
+
+* CORS(Cross-Origin Resource Sharing 跨域资源共享)
+  * 这是一种基于http header的机制
+  * 它使用额外的http头告诉浏览器，让运行在一个源的web应用允许访问来自不同源服务器上的制定资源
+* 浏览器将CORS请求分成两类：**简单请求和复杂请求**
+  * `对于复杂请求`，浏览器必须`首先使用 OPTIONS 方法`发起一个预检请求（preflight request），从而获知服务端是否允许该跨域请求。服务器确认允许之后，才发起实际的 HTTP 请求。
+* **满足一下两大条件的，就属于简单请求（不满足的就属于复杂请求）**
+  * 请求方法是以下三种方法之一
+    * HEAD
+    * GET
+    * POST
+  * HTTP的头信息不超出以下几种字段
+    * Accept
+    * Accept-Language
+    * Content-Language
+    * Last-Event-ID
+    * Content-Type:只限于三个值` application/x-www-form-urlencoded、multipart/form-data、text/plain`
+
+​	
+
+**代码示例**
+
+* 代码中只需要在响应的时候设置请求头即可
+* 开发中可以使用全局中间件，避免每次都要单独设置
+
+```javascript
+// cors中间件 解决跨域
+app.use((req, res, next) => {
+  res.set('Access-Control-Allow-Origin', '*')
+
+  res.set(
+    'Access-Control-Allow-Headers',
+    'Accept,Accept-Encoding,Accept-Language,ConnectionContent-Length,Content-Type,Host,0rigin, Referer,User-Agent'
+  )
+  res.set('Access-Control-Allow-Credentials', true)
+
+  // console.log(req.method)
+  // if (req.method === 'OPTIONS') {
+  //   res.status(204)
+  //   res.end('')
+  // } else {
+  //   next()
+  // }
+  next()
+})
+
+// 编写中间件
+app.post('/test', (req, res, next) => {
+  res.end('test api')
+})
+
+```
+
+## 7.4.node代理服务器
+
+**原理**
+
+* 跨域是因为浏览器的同源安全策略所导致的，但是**服务器与服务器、app与服务器、小程序与服务器是不存在跨域的**
+* 所以利用nodejs搭建一个代理服务器，将本地开发的前端代码托管到这个代理服务器的静态资源中
+* 将静态资源的请求地址换成代理服务器地址
+* 在这个代理服务器中使用`http-proxy-middleware`三方中间件来`转发请求和响应`
+  * 当客户端发起请求，实际上是请求这个代理服务器（因为前端资源和代理服务器是在一起的符合同源策略），然后代理服务器拿到请求后，向目标服务器发起请求，目标服务器接送到请求然后响应数据给代理服务器，代理服务器再将结果给到客户端
+* **其实webpack中的代理服务器也是用到这个中间件的**，总所周知，webpack是基于node的，我们可以想一下，用webpack来启动文件也是需要启动服务的，然后访问静态资源，原理和我们现在编写代码一样
+
+
+
+**安装**
+
+```
+npm i http-proxy-middleware
+```
+
+
+
+### 7.4.1.**使用**
+
+
+
+**客户端**
+
+```html
+<script>
+  // 将请求的地址是代理服务器
+    const requst = new Request('http://localhost:8001/api/test', {
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    fetch(requst).then((res) => {
+      console.log(res)
+    })
+</script>
+```
+
+
+
+**代理服务器**
+
+​	
+
+​	
+
+* `target`:要代理到的服务器，可以是域名也可以是ip+端口号;
+* `changeOrigin`:虚拟托管网站，如果为`true`，源服务器获取的req.header的信息就是他自己的header，如果为`false` 那么获取的header信息就是代理服务器的
+
+* `ws`:是否代理`websockets`;
+
+* `secure`:是否代理https请求;
+
+* `pathRewrite`:重写路径，将":"前的路径替换为后面的路径;
+
+```javascript
+const express = require('express')
+const httpProxyMiddleware = require('http-proxy-middleware')
+
+const app = express()
+
+const options = {
+  target: 'http://localhost:8002',
+  changeOrigin: true,
+  ws: true,
+  secure: true,
+  pathRewrite: {
+    '^/api': '',
+  },
+}
+// 托管静态资源
+app.use(express.static('../client'))
+
+app.use(
+  '/api',
+  httpProxyMiddleware.createProxyMiddleware(options),
+  (req, res, next) => {
+    next()
+  }
+)
+
+// 监听端口
+app.listen(8001, () => {
+  console.log('8001端口监听成功')
+})
+
+```
+
