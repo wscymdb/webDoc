@@ -221,6 +221,29 @@ ALTER TABLE xxx MODIFY 列名 列类型 列约束(可选);
 * 主键也可以是多列索引，PRIMARY KEY（key_pary,...），一般称为`联合主键`(了解)
 * 建议：开发中主键字段应该是和业务无关的，尽量不要使用业务字段来作为主键
 
+#### 3.5.1.1联合主键
+
+* 表示只有当联合主键的值一起发挥某种作用的时候才会触发联合主键的规范
+
+```sql
+--  PRIMARY KEY(mid, lid)表示联合主键，表示只有当联合主键的值一起发挥某种作用的时候才会触发联合主键的规范
+-- eg：(mid：3 lid：3) (mid：3 ld：3) 有一组mid是3lid是4  又有一组数据mid是3lid4 这时候联合主键有返回规范作用  如果另一组lid是5那么就不会报错
+
+CREATE TABLE
+    IF NOT EXISTS `moment_label`(
+        moment_id INT NOT NULL,
+        label_id INT NOT NULL,
+        createAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY(moment_id, label_id),
+        Foreign Key (moment_id) REFERENCES moment(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        Foreign Key (label_id) REFERENCES label(id) ON UPDATE CASCADE ON DELETE CASCADE
+    );
+
+```
+
+
+
 ### 3.5.2.唯一约束 UNIQUE
 
 * `某些字段`在开发中`希望是唯一的`，`不会重复的`，比如手机号码，身份证，这些字段可以使用UNIQUE来进行约束

@@ -1385,3 +1385,334 @@ pool
   })
 ```
 
+# 6.登陆凭证
+
+## 6.1.cookie
+
+**cookie一般是服务器帮助设置的，有些特殊情况客户端进行操作（删除cookie等）**
+
+
+
+* Cookie(复数：Cookies)，又称之为“小甜饼”，`类型为“小型文本文件”`，某些网站为了辨别用户身份而存储在用户本地终端上的数据
+
+  * 浏览器会在特定的情况下携带上cookie来发送请求，我们可以通过cookie来获取一些信息
+
+    
+
+* Cookie总是保存在客户端中，按在客户端中的存储位置，Cookie可以分为`内存Cookie`和`硬盘Cookie`
+
+  * `内存Cookie`：由浏览器维护，保存在内存中，浏览器关闭时Cookie就会消失，其存在`时间是短暂的`
+
+  * `硬盘Cookie`：保存在硬盘中，`有一个过期时间`，用户手动清理或者过期时间到期，才会被清理
+
+    
+
+* 如何判断一个cookie是内存cookie还是硬盘cookie
+
+  * `没有设置过期时间`，默认情况下是内存cookie，在关闭浏览器的以后会自动删除
+  * `有设置过期时间`，并且过期时间不为0或者负数的cookie是硬盘cookie，需要手动或到期时，才会删除
+    * 所以给一个cookie设置过期时间是0或负数可以手动删除
+
+### 6.1.1.cookie常见的属性
+
+**cookie生命周期**
+
+* 默认情况下cookie是**内存cookie**，也称之为**会话cookie**，也就是浏览器关闭时会自动被删除
+
+* 可以通过设置以下属性来设置过期时间
+
+  * **expires**：设置的是Date.toUTCString()，格式是：express=date-in-GMTString-format
+
+  * **max-age**：设置过期时间，单位是秒钟，`max-age=60*60*24(一天后过期)`
+
+    
+
+**cookie的作用域：（允许cookie发送给哪些URL）**
+
+* Domian：指定哪些主机可以接受cookie
+
+  * 如果不指定，那么默认是`origin`，`不包括子域名`
+
+  * 如果`指定Domain`，则`包含子域名`
+
+  * ```
+    当前是在 baidu.com/a?name=123发送的请求，
+    如果不指定Domain那么 在百度的其它子域名下发送请求就不会携带cookie 
+    比如。a.baidu.com/list 下就不会携带
+    
+    如果设置了 Domain=baidu.com. 那么a.baidu.com/list发起请求就会携带
+    ```
+
+    
+
+### 6.1.2.客户端设置Cookie
+
+**js直接设置或获取cookie**
+
+```javascript
+console.log(document.cookie)
+```
+
+**这个cookie会在会话(浏览器)关闭时被删除**
+
+```javascript
+document.cookie = "name=jack"
+document.cookie = "age=19"
+```
+
+**设置cookie同时设置过期时间**
+
+```javascript
+document.cookie = "name=jack;max-age=10"  // 单位时s
+```
+
+### 6.1.3.服务端设置Cookie
+
+* 下面案例以koa为例子
+
+```javascript
+* 服务器设置cookie
+* 浏览器拿到cookie，自动设置在浏览器中
+* 浏览器发送请求自动携带cookie
+
+userRouter.get('/login', (ctx, next) => {
+  ctx.cookies.set('slogan', 'ikun', {
+    maxAge: 15 * 1000, // 这里的时间时毫秒
+  })
+  ctx.body = '登陆成功'
+})
+
+userRouter.get('/list', (ctx, next) => {
+  const slogan = ctx.cookies.get('slogan')
+  console.log(slogan)
+  ctx.body = 'list'
+})
+
+```
+
+## 6.2.session
+
+**为什么要用session**
+
+* 上面案例中基于cookie来实现凭证，但是凭证的内容都是明文的
+* 在传输过程中很不安全，容易被伪造
+* 所以session就孕育而生
+
+
+
+**下面案例是基于koa演示**
+
+
+
+* **在koa中可以使用三方中间件koa- session来实现session认证**
+  * npm i  koa-session
+  * 这个中间件是基于cookie进行的加密操作
+
+* 单独使用session其实并不是很安全
+* 所以要进行加密（加盐操作）
+* 这样就形成了双重认证
+
+```javascript
+const Koa = require('koa')
+const KoaRouter = require('@koa/router')
+const koaSession = require('koa-session')
+
+// 创建服务器
+const app = new Koa()
+
+// 注册路由
+const userRouter = new KoaRouter({ prefix: '/users' })
+
+//  设置session 其实就是一个中间件
+app.use(
+  koaSession(
+    {
+      key: 'sessionid', // 返回个客户端cookie的名字，可自定义
+      signed: true, // 进行加盐操作
+      maxAge: 60 * 60 * 1000, // 单位ms
+    },
+    app
+  )
+)
+// 加盐操作
+// 设置此操作，会给客户端返回两个由session加密的cookie
+// 一个是自己设置的，一个是加盐时候设置的
+// 加盐的内容可以自定义，其实就是一种算法
+app.keys = ['aaa', 'bbb', 'cccdsa']
+
+userRouter.get('/login', (ctx, next) => {
+  // 设置cookie
+  ctx.session.slogan = 'ikun'
+  ctx.body = '登陆成功'
+})
+
+userRouter.get('/list', (ctx, next) => {
+  // 获取cookie
+  const slogan = ctx.session.slogan
+  console.log(slogan)
+  ctx.body = 'list'
+})
+```
+
+## 6.3.token
+
+**cookie和session的缺点**
+
+* Cookie会`被附加在每个HTTP请求中`，所以无形之中增加了流量（有些请求可能不需要Cookie）
+* Cookie`是明文传输的`，即使是用了session进行加密，存在安全性的问题
+* Cookie的`大小限制是4kb`，对于复杂的请求来说是不够用的
+* 对于`浏览器外的其它客户端`（比如IOS、Android），必须`手动的设置cookie和session`**（被替代的主要原因）**
+* 对于`分布式系统和服务器集群`中如何可以保证其它系统中也可以正确的解析session**（被替代的主要原因）**
+  * 因为session使用加盐的方式加密后，每次生成的session是不唯一的
+  * 那么当前系统的session在别的系统中要验证是很麻烦的
+
+**所以，在目前的钱后端分离的开发过程中，使用token来进行身份验证是最多情况**
+
+* token可以翻译成`令牌`
+* 这个令牌`作为后续用户访问一些资源的凭证`
+
+**所以token的使用应分为两个重要步骤**
+
+* `生成token`：登陆的时候颁发token
+* `验证token`：访问某些资源或接口时，验证token
+
+
+
+### 6.3.1.JWT实现Token机制
+
+**JSON（JSON WEB TOKE）**
+
+
+
+**JWT生成的Token由三部分组成**
+
+
+
+`header和payload可以通过反向解密解出来，但是signature很难被解除来，所以secretKey一定不能暴露`
+
+* **header**
+
+  * alg：采用的加密算法，【默认是HMAC SHA256(HS256)，采用同一个密钥进行加密和解密】
+  * type：JWT，固定值，通常写成JWT即可
+  * 然后用base64Url算法对header进行编码
+
+* **payload**
+
+  * 携带的数据，比如可以将用户的id和name放在payload中
+  * 默认也会携带iat(issued at)，令牌的签发时间
+  * 也可以设置过期时间：exp（expiration time）
+  * payload的内容也会用base64Url算法进行编码
+
+* **signature**
+
+  * 设置一个secretKey，通过将建两个的结果合并后进行，header.alg的加密方式进行加密
+
+  * eg：HMACSHA256(base64Url(header)+ . + base64Url(payload), secretKey)
+
+  * 但是如果secretKey暴露是一件非常危险的事情，因为之后就可以模拟办法token，也可以解密token
+
+    
+
+### 6.3.2.token的使用
+
+* 使用三方库 jsonwebtoken
+  * npm i jsonwebtoken
+
+```javascript
+const jwt = require('jsonwebtoken')
+
+const secretKey = 'wssb'
+
+userRouter.get('/login', (ctx, next) => {
+  // 颁发token
+  const token = jwt.sign({ name: '只能' }, secretKey, {
+    expiresIn: 1000, // 单位时s
+  })
+  ctx.body = {
+    code: 0,
+    token,
+    msg: '登陆成功',
+  }
+})
+
+userRouter.get('/list', (ctx, next) => {
+  // 验证token
+  try {
+    const authorization = ctx.header.authorization
+    const verify = jwt.verify(authorization, secretKey)
+    console.log(verify)
+    ctx.body = verify
+  } catch (error) {
+    ctx.body = error
+  }
+})
+```
+
+### 6.3.3.非对称加密(rsa)
+
+* jwttoken `默认算法是SHA256`(对称加密算法)
+* 这种算法`只有一个密钥`，所以`验证和颁发token都可以用这个密钥`，是不太安全的
+  * 比如在分布式系统中，如果黑客攻破了任一个系统，那么拿到密钥后都可以进行伪造然后颁发token
+* 所以可以使用`RS256(非对称加密算法)`
+* 这个算法`由一个公钥和私钥组成`
+* 可以`用私钥来颁发token，公钥来验证token`
+  * 那么在分布式系统中，比如在用户系统中来保存私钥，其它系统都可以拿到公钥，这样，就仅仅需要对用户系统做特殊的保护，而不需要对所有的系统做特殊保护
+
+**如何生成公钥和密钥**
+
+```js
+mac中直接在terminal中输入, window需要在gitbash中输入
+
+// 1. 输入 openssl 进入 openssl
+opensssl
+// 2. 生成密钥  rs256要求最低2048字节
+genrsa -out 密钥名称 字节
+// eg genrsa -out private.key 2048
+
+// 3.生成公钥
+rsa -in 密钥文件 -pubout -out 公钥名
+// eg：rsa -in private.key -pubout -out public.key
+```
+
+
+
+```javascript
+const Koa = require('koa')
+const KoaRouter = require('@koa/router')
+const jwt = require('jsonwebtoken')
+const fs = require('fs')
+
+// 创建服务器
+const app = new Koa()
+// 读取密钥文件
+const privatekey = fs.readFileSync('./keys/private.key')
+const publickey = fs.readFileSync('./keys/public.key')
+// 注册路由
+const userRouter = new KoaRouter({ prefix: '/users' })
+
+userRouter.get('/login', (ctx, next) => {
+  // 颁发token
+  const token = jwt.sign({ name: '只能' }, privatekey, {
+    expiresIn: 1000, // 单位时s
+    algorithm: 'RS256',
+  })
+  ctx.body = {
+    code: 0,
+    token,
+    msg: '登陆成功',
+  }
+})
+
+userRouter.get('/list', (ctx, next) => {
+  // 验证token
+  try {
+    const authorization = ctx.header.authorization
+    const verify = jwt.verify(authorization, publickey)
+    console.log(verify)
+    ctx.body = verify
+  } catch (error) {
+    ctx.body = error
+  }
+})
+```
+
