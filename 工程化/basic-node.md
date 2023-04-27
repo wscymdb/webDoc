@@ -1119,7 +1119,7 @@ if (module.hot) {
 
 **compress**
 
-* 是否为静态文件开启gzip compression
+* 是否为打包后的代码压缩 gzip compression
 * 默认值是`true`
 
 #  7.git

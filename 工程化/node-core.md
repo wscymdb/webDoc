@@ -1852,6 +1852,9 @@ npm i http-proxy-middleware
 
 * `target`:要代理到的服务器，可以是域名也可以是ip+端口号;
 * `changeOrigin`:虚拟托管网站，如果为`true`，源服务器获取的req.header的信息就是他自己的header，如果为`false` 那么获取的header信息就是代理服务器的
+  * 有的服务器为了做反扒，会判断req.header.host的 如果你的请求不是当前服务器地址的host是不给你数据的
+
+  * 比如服务器地址是http://123.124.123.112:8000 但是用代理我们的请求地址是http://127.0.0.1:3000，那么服务器在获取req.header.host的时候。如果`changeOrigin：true `那么请求的host就是http://123.124.123.112:8000 反之则是http://127.0.0.1:3000
 
 * `ws`:是否代理`websockets`;
 
