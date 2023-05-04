@@ -44,7 +44,7 @@ module.exports = {
 **下面几个值是不会生成source-map文件的**
 
 * **false**：不使用source-map，也就是没有任何source-map相关的内容
-* **none**：`mode：production`时候的默认值，不生成source-map （`不能主动设置否则会报错`，真当production是自动设置）
+* **none**：`mode：production`时候的默认值，不生成source-map （`不能主动设置否则会报错`，当production时自动设置）
 * **eval**：`mode:development`时的默认值，不生成source-map
   * 但是它会在eval执行的代码中添加 //# sourceURL= xxx
   * 然后就会被浏览器在执行的时候解析，并且在调试面板中生成对应的文件目录，方便我们调试代码
@@ -120,7 +120,7 @@ npx babel ./src --out-dir ./dist --presets=@babel/preset-env
 
 * 实际开发中，我们通常会在构建工具中通过配置babel来对其进行使用，比如在webpack中
 * 那么就需要安装相关的依赖了`(安装babel-loader的时候会自动安装@babel/core)`
-  * `nmp i babel-loader @babel/core`
+  * `npm i babel-loader @babel/core`
 
 **配置babel**
 
@@ -133,7 +133,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /.js$/,
+        test: /\.js$/,
         use: {
           loader: 'babel-loader',
           options: {
@@ -1036,3 +1036,485 @@ module.exports = {
 
 ```
 
+## 4.3.shimming预支全局变量
+
+* shimming`是一种思想`
+* `开发中尽量少用`，这和webpack的模块化的理念相悖,当发现出现下面的问题然后用shimming思想解决即可
+* 这是为了防止一种情况
+* 比如 我们使用了一个第三方库，abc这个库，他里面用到了dayjs这个库，但是abc这个库没有引入dayjs这个库，他默认认为全局引入了dayjs这个库，那么这时候运行代码，代码就会报错（测试的时候不要用cdn引入，否则全局就会有dayjs这个变量了）
+* 解决方法也很简单，就是在代码运行的时候在全局加一个dayjs的变量
+* 可以使用**ProvidePlugin**来实现**shimming**的效果:
+  * ProvidePlugin是webpack内置集成了的插件，无需下载，直接引入即可
+
+```javascript
+const { ProvidePlugin } = require('webpack')
+module.exports = {
+  mode: 'development',
+  plugins: [
+    new ProvidePlugin({
+      day: 'dayjs', // 表示在全局引入了dayjs 类似 import day form 'dayjs'
+    }),
+  ],
+}
+```
+
+## 4.4.提取css到单独的文件
+
+* 使用`MiniCssExtractPlugin`插件，可以将css单独提取到一个文件中
+* `npm i mini-css-extract-plugin -D`
+
+```javascript
+
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+/** @type {import('webpack').Configuration} */
+module.exports = {
+  mode: 'development',
+  module: {
+    rules: [
+      {
+        test: /.css$/,
+        // 开发中我们是用style-loader  他的作用是将编写的样式放在header的style中，便于我们调试
+        // use: ['style-loader', 'css-loader'],
+        // 生产环境中我们使用MiniCssExtractPlugin.loader  这个插件将css单独提取到一个文件中了，然后这个插件的loader将这个文件以<link ref=...>的方式引入到index.html中
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
+      },
+    ],
+  },
+  plugins: [
+    // 对css的提取  记得在rules中使用MiniCssExtractPlugin.loader代替style-loader
+    new MiniCssExtractPlugin({
+      filename: 'css/[name]-css.css',  // 提取的文件的名称
+      chunkFilename: 'css/[name]-chunk.css', // 动态导入的文件是单独分包的，那么如果有动态导入的css文件也会单独分包，这个就是设置分包的名字
+    }),
+  ]
+
+}
+
+```
+
+## 4.5.压缩js代码
+
+### 4.5.1.Terser的介绍和安装
+
+* **Terser是一个用来压缩(compress)、丑化(Mangle)js代码的工具集**
+  * 当部署项目的时候肯定是希望包的体积越小越好这样在网络之间的传输速度会快
+  * 那么可以对代码压缩、丑化来减少体积，比如删除注释和空行，对与长变量名改为短的变量名(const message = '123' -> const m = '123')
+* 早期我们会使用 uglify-js来压缩、丑化我们的JavaScript代码，但是目前已经不再维护，并且不支持ES6+的语法;
+* Terser是从 uglify-es fork 过来的，并且保留它原来的大部分API以及适配 uglify-es和uglify-js@3等;
+
+**因为Terser是一个独立的工具，所以它可以单独安装:**
+
+* `npm i terser`
+
+
+
+**命令行使用Terser**
+
+```
+terser [input files] [options]
+
+eg :
+		terser js/index.js -o index.min.js -c xxx -m xxx
+		
+	表示：使用terser执行js/index.js 输出文件是(-o) index.min.js. -c(压缩的配置项) -m(丑化的配置项)
+```
+
+
+
+**部分配置项**
+
+*  https://github.com/terser/terser#compress-options
+*  https://github.com/terser/terser#mangle-options
+
+`Compress option(压缩配置项)`
+
+* `arrows`: class中或者object中的函数，转为箭头函数
+* `arguments`：将函数中使用arguments[index]转为对应的形参名称
+* `dead_code`： 默认值true，移出不可达的代码（tree shaking）
+  * eg: if(false) clg(12332)
+
+`Mangle option`
+
+* `toplevel`：默认值为false，`顶层作用域`中的变量名称进行丑化
+* `keep_classnames`: 默认值false，丑化代码的时候，不丑化类名
+* `keep_fnames`：默认值false，丑化代码的时候，不丑化函数名
+
+```
+terser js/index.js -o index.min.js -c arrows=true,arguments=true  -m toplevel=true,keep_fnames=true
+```
+
+### 4.5.2.Terser在webpack中的配置
+
+* 真实开发中，不需要手动的通过terser来处理我们的代码，可以直接通过webpack来处理
+  * webpack中有一个minimizer属性，`在production`的模式下，`默认使用terserPlugin`插件来处理js代码
+* 如果不满意默认配置，可以进行手动配置
+  * 确保`minimize`(告知webpack打包的时候压缩代码)为`true`,production模式下为默认为true
+  * 然后在minimizer中创建一个TerserPlugin(`webpack中已经集成的插件，无需下载`)
+    * `extractComments`: 默认为true，表示将注释单独抽取到一个文件中
+    * `parallel`：使用多进程并运行提高构建的速度，默认是false
+    * `terserOptions`：设置terser相关的配置
+
+```javascript
+// 直接引入即可 无需下载webpack5已经默认集成
+const TerserPlugin = require('terser-webpack-plugin')
+module.exports = {
+  mode: 'production',
+ 
+  // 优化配置
+    optimization: {
+    minimize: true,
+    // minimizer存放压缩代码的插件 可以是js压缩的插件，也可使压缩css的插件
+    minimizer: [
+      // 压缩js的插件
+      new TerserPlugin({
+        extractComments: false, // 不单独提取注释
+        // 默认情况下webpack已经对terser进行了配置
+        // 如果想要更改配置可以在terserOptions对象中自定义配置
+        terserOptions: {
+          // 压缩代码配置
+          compress: {
+            arguments: true,
+          },
+          // 丑化代码配置
+          // 不能为对象，值为boolean
+          // 在terserOptions对象中写mangle的配置即可
+          mangle: true,
+          keep_fnames: true,
+        },
+      }),
+    ],
+  },
+}
+
+
+```
+
+### 4.6.压缩CSS
+
+* **使用的是`css-minimizer-webpack-plugin`来压缩css的**
+* `npm i css-minimizer-webpack-plugin -D`
+* css-minimizer-webpack-plugin是使用**cssnano**工具来完成优化、压缩css的（这个工具也可以单独使用）
+* `注意`：必须是将css单独抽`取到文件中`的才可以使用这个压缩，如果使用的是`style-loader`，会自动压缩
+
+```javascript
+const CssMinimizerWebpackPlugin = require('css-minimizer-webpack-plugin')
+
+module.exports = {
+mization: {
+    minimize: true,
+    // minimizer存放压缩代码的插件 可以是js压缩的插件，也可使压缩css的插件
+    minimizer: [
+      // 压缩css
+      new CssMinimizerWebpackPlugin(),
+    ],
+  },
+}
+```
+
+## 4.7. Tree Shaking
+
+### 4.7.1.什么是Tree Shaking
+
+* 什么是**Tree Shaking呢?**
+  * Tree Shaking是一个术语，在计算机中表示`消除死代码`(dead_code);
+  * 最早的想法`起源于LIS`P，用于`消除未调用的代码`(纯函数无副作用，可以放心的消除，这也是为什么要求我们在进行函数式 编程时，尽量使用纯函数的原因之一);
+  * 后来Tree Shaking也被应用于其他的语言，比如JavaScript、Dart;
+
+* JavaScript**的Tree Shaking:**
+  * 对JavaScript进行Tree Shaking是`源自打包工具rollup`;
+  * 这是因为Tree Shaking依赖于`ES Module的静态语法分析`(不执行任何的代码，可以明确知道模块的依赖关系);
+  * webpack2正式内置支持了ES2015模块，和检测未使用模块的能力;
+  * 在webpack4正式扩展了这个能力，并且通过` package.json的 sideEffects属性`作为标记，告知webpack在编译时，哪里文 件可以安全的删除掉;
+
+### 4.7.2.webpack实现Tree Shaking
+
+
+
+* webpack中实现Tree shaking采用了两种不同的方案
+  * `usedExports`: 通过标记某些函数是否被使用，之后通过Terser来进行优化
+  * `sideEffects`：跳过整个模块/文件，直接查看该文件是否有副作用
+
+### 4.7.3.usedExports
+
+* 开启方式很简单：只需要在`optimization`将`usedExports`设置为`true`即可
+* 当`mode:production`的时候webpack`默认将其开启`
+
+
+
+
+
+**为了看到效果，要进行如下设置**
+
+* 将`mode:'development'`，并将`devtool:false`方便我们观察
+
+
+
+**案例场景**
+
+* 我们在入口文件main.js中定义了一个函数foo，但是并没有使用这个foo
+* 同时在入口中引入了math.js文件，这个文件中导出了sum函数和sub函数，但是我们在main.js中只使用sum函数
+* 现在按照上述配置开始打包代码，我们会发现打包主包中，foo函数是没有的，但是sub函数依然存在
+  * 这是因为默认情况下webpack`会对入口文件的代码进行Tree Shaking`
+  * 但是`对于引入的文件并不会`进行Tree Shaking
+* 这时候我们将`optimization`的`usedExports:true`,我们会发现在math.js中会有一个注释`/*unused harmony export sub*/`
+  * 这也是一个魔法注释
+  * 他的作用是在使用Terser代码的时候，可以放心的删掉这段代码
+* 但是这时候其实是没有删除代码的，`因为development模式的时候，是不会开启minimize的`
+  * 我们可以将`minimizer:true`，这时候在打包代码可以发现sub函数没有了
+* **所以usedExports方案实现Tree Shaking是要结合Terser的**
+
+
+
+
+
+### 4.7.4.sideEffects
+
+* **sideEffects用于告知webpack  compiler哪些模块是有副作用的**
+  * 比如我们导入了一个a.js文件但是没有用这个文件的变量，但是这个文件里面设置了一个全局的变量，那么tree shaking的时候把这个文件删除了后面的文件如果用到这个全局变量就会报错
+* **在package.json中设置sideEffects的值**
+  * 设置`false`：等于告诉webpack compiler可以安全的删除某些没有用到的导入文件
+  * 如果我们希望`可以保留一些文件`，可以将`值设为数组`，那么`数组的文件`都`不会被删除`
+* **在开发中尽量使用纯模块开发，方便tree shaking**
+  * 纯模块和纯函数一样的到底，就是不会产生副作用
+
+main.js
+
+```javascript
+import '../css/style.css'
+import { sub, sum } from './utils/math'  // 有用到sum变量，这个文件不会被tree shaking
+import './utils/util'  // 这种方式引入的，如果设置了sideEffects：false那么会被删掉
+
+console.log(sum(1, 2))
+
+
+```
+
+package.json
+
+```json
+{
+  "name":"demo",
+  "sideEffects":["*.css","./src/math.js"]  // 导入的css文件和math.js不会被tree shaking
+}
+```
+
+### 4.7.5.开发中如何使用
+
+* 在开发中`推荐usedExports和sideEffects一起使用`
+  * 在optimization中配置uesdExports:true（production模式下webpack会自动设置）
+  * 在package.json文件中设置sideEffects，直接对模块进行优化
+
+### 4.7.6.CSS中的tree shaking
+
+* CSS的tree shaking 是`在打包代码的时候将没用到的选择器给删除掉`
+* 在早期的时候，我们会使用PurifyCss插件来完成CSS的tree shaking，但是目前该库已经不再维护了(最新更新也是在4年前 了)
+* `目前`我们可以使用另外一个库来完成CSS的Tree Shaking:`PurgeCSS`，也是一个帮助我们删除未使用的CSS的工具
+  * `npm i purgercss-webpack-plugin -D`
+  * 这个插件要结合`mini-css-extract-plugin`这个差价来使用
+
+**配置purgeCss**
+
+* paths：表示要检测哪些目录下的内容需要被分析，我们可以借助`glob这个库`来实现
+* `默认情况下`，purgecss会将我们的`html标签样式移除`，如果希望保留，可以添加safelist（白名单）
+* https://www.npmjs.com/package/purgecss-webpack-plugin npm地址
+
+
+
+**purgecss也可以对less、scss等文件进行处理，所以他是对`打包后的css文件进行tree shaking操作`的**
+
+```javascript
+const path = require('path')
+const glob = require('glob') // 扫描某路径下的所有文件夹或文件,需要单独安装 npm i glob
+
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { PurgeCSSPlugin } = require('purgecss-webpack-plugin')
+
+/** @type {import('webpack').Configuration} */
+module.exports = {
+  mode: 'development',
+  devtool: false,
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'css/style.css',
+    }),
+    // tree shaking CSS
+    new PurgeCSSPlugin({
+      paths: glob.sync(`${path.resolve(__dirname, '../src')}/**/*`, {
+        nodir: true, // 结果只要文件 不要文件夹
+      }),
+       safelist: () => ({
+        standard: ['html'],
+      }),
+    }),
+  ],
+}
+```
+
+
+
+## 4.8.Scope Hoisting
+
+* Scope Hoisting翻译过来是`作用域提升`的意思,是`webpack3`中新增的一个功能
+
+  * 功能是对作用域进行提升，并且让webpack打包后的代码更小、运行更快
+
+* **默认情况下webpack打包会有很多的函数作用域，包括一些（比如最外层的）IIFE**
+
+  * 无论是从最开始的代码运行，还是加载一个模块，都需要执行一系列的函数
+  * `scope hoisting可以将函数合并到一个模块中来运行`
+  * 比如默认情况下在打包的时候，每个引入的文件其实都是在不同的作用域中的（webpack通过函数包裹每个模块实现不同的作用域），比如在main.js中使用了math.js的sum函数，那么打包的时候，math.js和main.js放在不同的作用域中，如果main.js想要使用sum就需要引入
+  * 使用了scope hoisting那么会将math和main放在一个作用域中，所以main就可以直接使用math的sum函数，不需要再次引入，进而减少代码体积，加快运行速度
+
+* 使用Scope Hoisting很简单，**wepack已经内置了对应的模块**
+
+  * 在`production`模式下，默认这个`模块就会启用`
+  * 在development模式下需要手动开启
+
+* **如果存在同名的变量，那么webpack是不会作用域提升的**
+
+* ```javascript
+  const webpack = require('webpack')
+  module.exports = {
+    plugins: [
+       new webpack.optimize.ModuleConcatenationPlugin()
+    ]
+  }
+  ```
+
+* 
+
+## 4.9.HTTP压缩
+
+### 4.9.1.什么是HTTP压缩
+
+* **HTTP压缩是一种内置在 服务器 和 客户端 之间的，以改进传输速度和带宽利用率的方式**
+* HTTP压缩的流程
+  * 第一步:HTTP数据在服务器发送前就已经被压缩了;(可以在webpack中完成)
+  * 第二步:兼容的浏览器在向服务器发送请求时，会告知服务器自己支持哪些压缩格式;
+  * 第三步:服务器在浏览器支持的压缩格式下，直接返回对应的压缩后的文件，并且在响应头中告知浏览器;
+
+### 4.9.2.目前的压缩格式
+
+* **目前的压缩格式非常的多**:
+  * compress – UNIX的“compress”程序的方法(历史性原因，不推荐大多数应用使用，应该使用gzip或deflate); 
+  * `deflate `– 基于deflate算法(定义于RFC 1951)的压缩，使用zlib数据格式封装;
+  * `gzip` – GNU zip格式(定义于RFC 1952)，是目前使用比较广泛的压缩算法;
+  * `br`– 一种新的开源压缩算法，专为HTTP内容的编码而设计;
+
+### 4.9.3.webpack对文件压缩
+
+* 使用CompressionPlugin来进行压缩
+* `npm i compression-webpack-plugin -D`
+
+```javascript
+const CompressionWebpackPlugin = require('compression-webpack-plugin')
+
+module.exports = {
+  plugins: [
+    // http压缩
+    new CompressionWebpackPlugin({
+      test: /\.(css|js)$/, // 匹配要压缩哪些文件
+      // threshold: 500, // 设置文件从多大开始压缩
+      minRatio: 0.7, // 至少的压缩比例
+      algorithm: 'gzip', // 采用的压缩算法
+    }),
+  ]
+}
+```
+
+### 4.9.4.HTML文件中的代码压缩
+
+* 我们之前使用了**HtmlWebpackPlugin**插件来生成HTML的模板，事实上它还有一些其他的配置:
+* **inject**:设置打包的资源插入的位置
+  *  true、 false 、body、head
+* **cache**:设置为true，只有当文件改变时，才会生成新的文件(默认值也是true)
+* **minify**:默认会使用一个插件html-minifier-terser来压缩html文件
+* **事实上HtmlWebpackPlugin会根据mode模式来进行压缩，当production模式下已经默认配置了一些压缩配置**，当然如果不满意可以进行自定义配置
+* minify配置详情 https://github.com/kangax/html-minifier#options-quick-reference
+
+```javascript
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+module.exports = {
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.resolve(__dirname, '../index.html'),
+      minify: {
+        removeComments: true, // 移除注程
+        collapseWhitespace: false, // 折叠空格
+        removeRedundantAttributes: false, // 移除多余的属性 type=text
+        useShortDoctype: true, // 比如我们的模板是html4，那么会转成html5的文档
+        removeEmptyAttributes: true, // 移除空的属性 id=""
+        removeStyleLinkTypeAttributes: true, // 比如link中的 type="text/css"
+        keepClosingSlash: true, // 是否保持单元凑的尾部/
+        minifyCSS: false, // 是否压缩css
+      },
+    }),
+  ],
+}
+```
+
+## 4.10.打包分析
+
+### 4.10.1.打包时间的分析
+
+* 默认情况下只能看到全部打包的时间，如果想要看到某个plugin或loader的打包时间，可以借助三方插件来实现
+* 观看某个plugin或loader的打包时间，我们就可以得知那个比较耗时，然后对症下药
+* `npm i speed-measure-webpack-plugin -D  `
+* **注意** 如果使用这个插件倒是某个插件报错，先把报错的插件注释掉即可，因为这个插件可能会不兼容某些插件，我们只是用来做打包时间分析的，分析完毕后正常打包就行
+
+```javascript
+const SpeedMeasurePlugin = require('speed-measure-webpack-plugin')
+const smp = new SpeedMeasurePlugin()
+
+// 将配置包裹，测试完毕后可以返回原配置，如果没有不兼容的情况也可以不反回 无伤大雅
+
+module.exports smp.wrap({
+  mode:'',
+  plugins:[]
+})
+```
+
+### 4.10.2.打包后文件分析
+
+* 有两种方案，都是webpack官方提供的
+
+**方案一**
+
+* 在执行打包命令的时候 生成一个json文件，然后将文件上传到一个网站上，然后在线分析
+
+* 加上--profile --json=文件名
+
+* ```json
+  {
+      "scripts": {
+        "build": "webpack --config ./webpack-config/comm.config.js --env production --profile --json=stats.json"
+    }
+  }
+  ```
+
+* 将生成的json文件放到http://webpack.github.com/analyse这个网站上
+
+* 但是目前这个网站打开，可以将这个仓库克隆到本地，然后启动
+
+
+
+**方案二**
+
+* 使用`webpack-bundle-analyzer`插件工具
+
+* `npm i webpack-bundle-analyzer -D`
+
+  ```javascript
+  const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+  
+  module.exports = {
+    plugins: [
+       new BundleAnalyzerPlugin()
+    ]
+  }
+  ```
+
+*  **在打包webpack的时候，这个工具是帮助我们打开一个8888端口上的服务，我们可以直接的看到每个包的大小。**
+
+  * 比如有一个包时通过一个Vue组件打包的，但是非常的大，那么我们可以考虑是否可以拆分出多个组件，并且对其进行懒加载;
+  * 比如一个图片或者字体文件特别大，是否可以对其进行压缩或者其他的优化处理;
