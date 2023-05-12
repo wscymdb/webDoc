@@ -89,7 +89,7 @@
 
 * CommonJS中是没有`module.exports`的概念的
   * 为了符合CommonJS的规范，所以设计了一个exports对象
-  * 默认情况下module.exports指向exports对象
+  * 默认情况下module.exports指向exports对象(exports = module.exports)
 * 但是为了实现模块的导出，Node中`使用的是Module的类`，每一个模块都是Module的一个实例，也就是module
 * 所以在Node中真正`用于导出`的其实根本不是exports，而`是module.exports`
   * 所以module.exports的`优先级高于`exports
@@ -141,7 +141,9 @@
   * 为false表示还没加载，为true表示已经加载
 * **结论三：如果有循环引用，加载顺序时`按照深度优先算法`来执行的**
   * 有以下的文件引用关系
-  * main.js -> a.js -> c.js -> d.js    main.js ->b.js -> e.js   b.js -> c.js
+  * main引入a.js和b.js
+  * a.js引入c.js  c.js引入d.js.  d.js引入e.js
+  * b.js引入c.js和e.js
   * 这种引用关系是一种数据结构：`图结构`
     * 图结构在遍历过程中有`深度优先`搜索和`广度优先`搜索
   * 执行顺序是：main.js - a.js - c.js - d.js - e.js - b.js
@@ -1199,7 +1201,7 @@ git log --pretty=oneline --graph  // 如果有多个分支合并到主分支，�
 ## 7.6.版本回退
 
 * 如果想要进行版本回退，需要直到目前处于哪个版本：git通过HEAD指针记录当前版本
-  * HEAD屎当前分支引用的指针，他总是指向该分支上的最后一次提交
+  * HEAD是当前分支引用的指针，他总是指向该分支上的最后一次提交
   * 可以将`HEAD`看作是`该分支的最后一次提交的快照`
 
 **命令**

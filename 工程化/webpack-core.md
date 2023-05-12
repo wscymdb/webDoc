@@ -1518,3 +1518,460 @@ module.exports smp.wrap({
 
   * 比如有一个包时通过一个Vue组件打包的，但是非常的大，那么我们可以考虑是否可以拆分出多个组件，并且对其进行懒加载;
   * 比如一个图片或者字体文件特别大，是否可以对其进行压缩或者其他的优化处理;
+
+# 5.自定义loader - plugin
+
+## 5.1.自定义loader
+
+* loader本质上就是一个`导出的函数模块`
+  * eg: module.exports = function() {}
+* webpack运行的时候会使用`loader runner库`来调用loader
+* **注意** 必须要使用`commonJS的导出规范`(module.exports || exports ),因为webpack是背靠node运行的，且`不能是箭头函数`，因为当运行时，loader runner库会调用loader并且绑定this
+
+
+
+### 5.1.1.loader接受的参数
+
+* `content`： 资源文件的内容
+* `map`：sourcemap相关的数据
+* `meta`：一些原始数据
+
+**自定义loader的时候一定要将处理过的内容返回出去，不然后续loader拿不到资源内容**
+
+```javascript
+module.exports = function (content, map, meta) {
+  ...
+  return  content
+}
+```
+
+
+
+### 5.1.2.读取loader的路径
+
+* 当我们自定义一个loader，那么怎么读取loader呢
+* **webpack读取loader的顺序**
+  * webpack解析loader时，
+  * 如果当前的loader是一个路径，那么久按照当前路径查找loader
+  * 如果是一个名字，那么回去查看`resolveLoader.alias`中是否有映射，如果有就用
+  * 如果没有就会拿到`resolveLoader.modules`中的目录去匹配目录下是否有该loader
+  * `名字可以不用写js后缀`，因为后缀可以由extends属性决定
+
+
+
+**方式一： 绝对路径或相对路径**
+
+```javascript
+module.exports = {
+  module: {
+    rules: [
+      {
+        test:/\.js$/,
+        // loader: path.resolve(__direname, './loaders/loader01.js')
+       
+        loader:'./loaders/loader01.js'
+      }
+    ]
+  }
+}
+```
+
+
+
+**方式二：resolveLoader.alias**
+
+* 这种方式其实就时给loader起一个别名
+* 当webpack解析到loader，如果`没有给路径`那么就会直接去`查找alias中`是否映射了该loader的路径
+* 但是`如果我们的loader一多起来`，会`导致代码过于冗余`，所以可以使用方式三
+
+
+
+```javascript
+module.exports = {
+  resolveLoader: {
+    alias: {
+      //起个别名
+       //hloader: path.resolve(__direname, './loaders/loader01.js')
+     	 hloader: './ym-loaders/01-loaders01.js',
+    }
+  }
+  module: {
+    rules: [
+      {
+        test:/\.js$/,       
+        loader:'hloader'
+      }
+    ]
+  }
+}
+```
+
+
+
+**方式三：resolveLoader.modules**
+
+* 可以通过modules给webpack解析loader提供一个查找目录
+* modules的默认值是`modules:['node_modules']`
+
+```javascript
+module.exports = {
+  resolveLoader: {
+    modules: ['node_modules','my-loader']
+  }
+  module: {
+    rules: [
+      {
+        test:/\.js$/,       
+        loader:'my-loader'
+      }
+    ]
+  }
+}
+```
+
+* 
+
+* 
+
+### 5.1.3.loader的执行顺序
+
+* 默认情况下：`由后往前(从右向左)`
+
+  
+
+loader的执行顺序有三种，分别是pre、normal、post，因为webpack还支持`内联方式配置loader`，所以loader的执行顺序`其实是有四种的`，顺序是`pre(前置)->normal(正常)->inline(内联)->post(后置)`
+
+```javascript
+// 内联方式配置loader
+import Styles from 'style-loader!css-loader?modules!./styles.css';
+```
+
+
+
+**那么如何改变loader 的执行顺序呢？**
+
+* 这时候需要用到`enforce`属性,`如果不写该属性代表是normal`
+  * `pre`：前置
+  * `post`：后置
+
+```javascript
+module.exports = {
+  resolveLoader: {
+    modules: ['node_modules','my-loader']
+  }
+  module: {
+    rules: [
+      {
+        test:/\.js$/,       
+        loader:'my-loader01',
+  			enforce:'pre'
+      },
+  		{
+        test:/\.js$/,       
+        loader:'my-loader02',
+  			enforce:'post'
+      },
+    ]
+  }
+}
+```
+
+### 5.1.4.loader的阶段
+
+* loader有**两个阶段**，**pitch阶段和normal阶段**
+  * 这两个阶段对应两个loader `pitch loader和normal loader(正常的loader)`
+* 在处理资源文件前，`首先会经历pitch阶段`，处理资源内容
+* `pitch阶段结束后`，才会将资源内容`传递给normal阶段`
+* https://juejin.cn/post/7036379350710616078#heading-12 这个有详解
+
+![](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5534bf720eba4c26ba2d3f3a3f2c057e~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp?)
+
+**pitch阶段的执行顺序**
+
+```
+post -> inline -> normal -> pre
+```
+
+**normal阶段的执行顺序**
+
+```
+pre -> normal -> ->inline -> post
+```
+
+* **由上综述，可以解释为什么loader的加载顺序是由后往前的了**
+
+
+
+#### 5.1.3.1.如何实现pitch loader
+
+* pitch阶段其`也是一个函数`，只不过这个函数是normal loader函数上的pitch属性
+
+```javascript
+function loader(content, map, meta) {
+  console.log('loader01:', content)
+
+  return content
+}
+// pitch loader
+loader.pitch = function () {
+  console.log('first')
+}
+module.exports = loader
+
+```
+
+
+
+#### 5.1.3.1.pitch loader的熔断效果
+
+* 因为pitch也是一个函数，如果`返回undefined`，那么`会继续执行后续的loader`
+* 如果`返回一个非undefined的值`，比如返回'loveyou'这个字符串，那么久不会执行后续的loader而是直接执行前一个normal loader，且这个normal loadr的内容就不是资源文件内容而是'loveyou'
+* 这种情况就叫pitch loader的熔断效果，开发中要避免这种情况的出现
+
+![](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4df62ce00b9745fab4dee2dc098ddb09~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp?)
+
+### 5.1.5.同步loader和异步loader
+
+* **同步loader**：如果当前loader中有耗时操作是不会等待该操作完成后才返回结果
+* **异步loader**：如果当前loader中有耗时操作，会等待当前loader中耗时操作完毕后，才去调用后续loader
+
+#### 5.1.5.1.同步loader
+
+* 默认创建的Loader就是同步Loader
+* 这个Loader必须通过`return` 或者`this.callback`来返回结果，交给下一个loader
+* 通常在`有错误情况下`，会使用`this.callback`来返回结果
+  * 比如  if(a === 20) 报错
+
+```javascript
+module.exports = function (content) {
+  console.log('loader04:', content)
+  // 同步loader可以直接return内容给下一个loader
+  // 也可以通过callbalck 返回内容 使用callback可以返回一个错误在控制台
+
+  const callback = this.callback
+  // 参数一：报错信息 无报错直接写null
+  // 参数二：下个loader的入参
+  callback(null, content + 'ccc')
+  // return content
+}
+
+```
+
+#### 5.1.5.2.异步loader
+
+* 有两种方式
+  * `this.async()`建议使用这中，报错会比较明显
+  * `Promise`
+
+```javascript
+module.exports = function (content) {
+  console.log('loader03:', content)
+
+  // 方式一
+  // 异步loader 调用this.async()函数告诉后面的loader等待
+  const callback = this.async()
+  setTimeout(() => {
+    // 第一参数是错误信息 如果没有写null即可
+    //第二个参数是下一个loader的入参
+    callback(null, content + 'aaa')
+  }, 2000)
+
+  // 方式二
+  // return new Promise((resolve, reject) => {
+  //   setTimeout(() => {
+  //     if (true) reject('错了错了')
+  //     resolve(content + 'aaa')
+  //   }, 2000)
+  // })
+}
+```
+
+
+
+### 5.1.6.传递参数
+
+* 给loader**传递参数**，需要用到`options`属性，
+* 这里注意，配置loader，`不可以使用use属性`，要使用loader属性
+* **接收参数**，使用`this.getOptions()`
+
+```javascript
+// webpack.config.js
+
+module.exports = {
+  module: {
+    rules: [
+      // {
+      //   test: /\.js$/,
+      //   use: 'loader4',
+      // },
+      // 如果想要传递参数 不可以使用use属性来配置loader，要用loader属性配置
+      {
+        test: /\.js$/,
+        loader: 'loader5',
+        options: {
+          name: 123,
+          plugin: ['123'],
+        },
+      },
+    ],
+  },
+}
+
+// loader5.js
+module.exports = function (content) {
+  // 获取使用loader时使用的参数
+  // 方式一：早期的时候需要使用loader-utils(webpack开发的)库来回去参数
+  // 方式二：目前，可以直接通过this.getOptions方法获取
+  const options = this.getOptions()
+  console.log('options:', options)
+  console.log('loader04:', content)
+
+  return content
+}
+```
+
+#### 5.1.6.1.校验参数
+
+* 校验传递来的参数，是否符合自己的要求
+  * 比如我们开发一个loader给别人用，要求传入的name是一个string类型，但是传入的是一个number类型，那么就要给用于一个提醒
+* 使用的是webpack提供的`schema-utils`库
+  * `npm i schema-utils -D`
+* 这个校验规则是自己编写的schema
+
+loaderSechema.json
+
+```json
+{
+  "type": "object", // 参数的类型
+  "properties": {  // 参数属性有哪些规则
+    "name": {
+      "type": "string",
+      "description": "name必须是string类型"  // 报错信息
+    },
+    "age": {
+      "type": "number",
+      "description": "age必须是number类型"
+    }
+  }
+}
+
+```
+
+## 5.2.自定义plugin
+
+* 我们知道`webpack`有两个非常重要的类:`Compiler`和`Compilation`
+  * 他们`通过注入插件的方式`，来`监听`webpack的`所有生命周期`
+  *  `插件的注入离不开各种各样的Hook`，而他们的Hook是如何得到的呢? 
+  * 其实是`创建了Tapable库中的各种Hook的实例`
+* **所以，如果我们想要学习自定义插件，最好先了解一个库:Tapable**
+  * `Tapable`是官方编写和维护的一个库;
+  * `Tapable`是管理着需要的Hook，这些Hook可以被应用到我们的插件中;
+
+### 5.2.1.Tapable库
+
+**Tapable的Hook分类**
+
+* **同步和异步**
+  * 以`sync`开头的，是`同步`的Hook
+  * 以`async`开头的，是`异步`的Hook，（如果有两个事件，后续的事件是不会等待上一个事件执行完毕的）
+* **与同步异步结合的类别**
+  * `bail：`当有返回值时，就不会执行后续的事件
+  * `loop：`当返回值为true，就会反复执行该事件，当返回值为undefined或不返回内容，就退出该事件
+  * `waterfall：`当返回值不为undefined，会将这次的返回结果作为下一次事件的第一个蚕食
+  * `parallel：`并行，会同时执行事件
+  * `series：`串行，会等待上一个事件执行完毕后才执行
+* 结合栗子
+  * syncBail、syncLoop、syncWaterfall
+  * asyncParallel、asyncSeries、asyncParallelBail等
+
+**使用列子**
+
+```javascript
+const { SyncHook } = require('tapable')
+
+class YmCompiler {
+  constructor() {
+    this.hooks = {
+      // 1.创建hooks
+      syncHook: new SyncHook(['name', 'age']),
+    }
+
+    //2.用hooks监听事件
+    this.hooks.syncHook.tap('event1', (name, age) => {
+      console.log('event1:', name, age)
+    })
+
+    this.hooks.syncHook.tap('event2', (name, age) => {
+      console.log('event2:', name, age)
+    })
+  }
+}
+
+const compiler = new YmCompiler()
+
+setTimeout(() => {
+  compiler.hooks.syncHook.call('章三', 18)
+}, 1000)
+```
+
+```javascript
+const { AsyncSeriesHook } = require('tapable')
+// AsyncSeriesHook 串行，会等待当前事件执行完毕后，才执行下一个事件
+class YmCompiler {
+  constructor() {
+    this.hooks = {
+      // 1.创建hooks
+      asyncSeriesHook: new AsyncSeriesHook(['name', 'age']),
+    }
+
+    //2.用hooks监听事件  监听异步事件用 tapAsync 和 callAsync
+
+    // 使用串行 必须要传入一个回调函数 然后在事件中调用这个回调
+    this.hooks.asyncSeriesHook.tapAsync('event1', (name, age, cb) => {
+      setTimeout(() => {
+        console.log('event1:', name, age)
+        cb()
+      }, 3000)
+    })
+
+    this.hooks.asyncSeriesHook.tapAsync('event2', (name, age, cb) => {
+      setTimeout(() => {
+        console.log('event2:', name, age)
+        cb()
+      }, 3000)
+    })
+  }
+}
+
+const compiler = new YmCompiler()
+
+setTimeout(() => {
+  compiler.hooks.asyncSeriesHook.callAsync('章三', 18, () => {
+    console.log('所有事件执行完毕～')
+  })
+}, 0)
+
+```
+
+### 5.2.2.自定义plugin
+
+```javascript
+// 自定义plugin 要么是一个函数
+// 要么是一个对象， 如果是对象 那么必须实现apply 方法
+//  compiler.hooks.xxx   xxx类似vue中的生命周期钩子
+// https://webpack.docschina.org/contribute/writing-a-plugin#root
+// webpack插件的核心就是使用了tapable这个库  所以用法和tapable一样
+
+class AutoUploadWebpackPlugin {
+  // 外界就可以穿参进来  eg：new AutoUploadWebpackPlugin({name:'123'})
+  constructor(options) {
+    this.options = options
+  }
+  apply(compiler) {
+    compiler.hooks.afterEmit.tapAsync('event1')
+  }
+}
+
+module.exports = AutoUploadWebpackPlugin
+```
+
