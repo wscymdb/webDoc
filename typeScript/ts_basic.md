@@ -232,7 +232,7 @@ const info: (string|number)[] = ["code", 22, 1.88]
 const item1 = info[0]  // 不能确定类型
 
 // 元组写法
-const info: [string|number] = ["code", 22, 1.88]
+const info: [string,number] = ["code", 22, 1.88]
 const item1 = info[0]  // 一定是string类型
 ```
 
@@ -311,7 +311,7 @@ let info: InfoType = {
 * interface`支持继承`
 * ......
 
-```javascript
+```typescript
 // 1.  interface只能定义对象的类型
 interface Iinfo {
     name: string;
@@ -437,7 +437,7 @@ person.friend!.name = "sd";
 * 本身单独使用字面量类型的意义不大
 * 所以可以`将多个字面量类型联合起来形成一个新的类型`
 
-```javascript
+```typescript
 // 基本用法
 const name: "zs" = "zs";
 let age: 18 = 18;
@@ -1126,7 +1126,7 @@ const info: IInfo = {
 * 有时候你不能提前知道一个类型的全部属性的名字，但是你知道值的形式是啥样的，这时候你就可以使用索引签名去描述 这个类型可能的值(官网翻译过来的)
 *  `ts规定阿数组签名的索引类型必须是string或者number其中一个`
 
-```javascript
+```typescript
 // 假设getInfo是三方库的一个方法
 // 但是我们不知道这个方法返回的对象具体有啥属性
 // 但是我们知道大概的返回值
@@ -1177,7 +1177,7 @@ export {};
 
 * 如果索取签名中定义的有其他属性，其他属性的返回类型必须符合string类型返回的类型
 
-* ```javascript
+* ```typescript
   interface IIndex {
       [key: string]: string
       aaa: string  // 正确
@@ -1187,9 +1187,9 @@ export {};
 
 * 
 
-奇怪的现象解析**
+**奇怪的现象解析**
 
-```javascript
+```typescript
 //  ts规定阿数组签名的索引类型必须是string或者number其中一个
 // 不可是联合类型
 interface ICollection {
