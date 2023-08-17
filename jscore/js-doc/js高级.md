@@ -9,12 +9,14 @@
 * new绑定this   ``大于``   隐式绑定的this
 * new绑定的this   ``大于``   bind绑定的优先级
 * bind绑定的this   ``大于``  apply、call绑定的this
+* new >  bind  >  apply、call > 显 > 隐 >default
 
 ``备注：``
 
 * new关键字不可以和call/apply一起使用，但是可以和bind一起使用
   * 因为bind返回的是一个新的函数
-* 隐式绑定： 浏览器执行的时候自动绑定，比如之际调用一个函数，this就是window
+* 默认绑定：独立函数调用，函数没有被绑定到某个对象上进行调用，比如直接调用一个函数，this就是window
+* 隐式绑定： 通过某个对象发起的函数调用，比如 obj.foo()
 * 显示绑定： 手动的设置this的指向，比如 foo.call('aa')
 
 ```javascript
@@ -379,7 +381,7 @@ console.log(newFn(2)); // 256
   * 这种情况也会引起回流、但是开销相对较小、不会对其他的元素造成影响
   * 这些属性会让元素脱标，重排的时候不会影响标准流的元素
 
-### 2.1.4.特殊解析-composite
+### 2.1.4.特殊解析-composite合成
 
 * 绘制过程中，可以将布局后的元素绘制到都多个合成图层中
   * 这是浏览器的一种优化手段
@@ -397,12 +399,12 @@ console.log(newFn(2)); // 256
   * 一个实验的属性，提前告诉浏览器元素可能发生哪些变化
 * animation或transition设置了opacity、transform
 
-``分成确实可以提高性能，但是他以内存管理为代价，因此不应该最为web性能优化策略的一部分过度使用``
+``分层确实可以提高性能，但是他以内存管理为代价，因此不应该作为web性能优化策略的一部分过度使用``
 
 ## 2.2.script元素和页面解析的关系
 
 * 浏览器在解析HTML过程中，遇到了script元素是不能继续构建DOM树的
-* 他会停止继续构建，首先下载js代码，并且执行js脚本
+* 他会停止构建，首先下载js代码，并且执行js脚本
 * 只有等到js脚本执行结束后，才会继续解析HTML，构建DOM树
 
 上述的原因
@@ -3038,7 +3040,6 @@ function ymDebounce(cb, delay, immediate = false) {
     // 返回一个函数用来作为oninput的事件
     const _debounce = function (...args) {
         return new Promise((resolve, reject) => {
-            try {
                 // 判断是否立即执行
                 if (immediate && !isInvoke) {
                     res = cb.apply(this, args);
@@ -3050,14 +3051,16 @@ function ymDebounce(cb, delay, immediate = false) {
                 if (timer) clearTimeout(timer);
                 // 创建一个计时器
                 timer = setTimeout(() => {
+                  try{
                     res = cb.apply(this, args);
                     resolve(res);
                     timer = null;
                     isInvoke = false;
+                  }catch(e) {
+                    reject(e)
+                  }
+                  
                 }, delay);
-            } catch (error) {
-                reject(error);
-            }
         });
     };
     // 取消防抖

@@ -37,7 +37,7 @@ var person1 = {
     }
 }
 
-var person = {name: 'person2'}
+var person2 = {name: 'person2'}
 
 person1.foo1()  // person1
 person1.foo1.call(person2)  // person2
@@ -46,12 +46,12 @@ person1.foo2() //window
 person1.foo2.call(person2) // window
 
 person1.foo3()() // window
-person.foo3.call(person2)() // window
-person.foo3().call(person2) // person2
+person1.foo3.call(person2)() // window
+person1.foo3().call(person2) // person2
 
 person1.foo4()() // person1
-person.foo4.call(person2)() // person2
-person.foo4().call(person2) // person1
+person1.foo4.call(person2)() // person2
+person1.foo4().call(person2) // person1
 ```
 
 # 面试题三

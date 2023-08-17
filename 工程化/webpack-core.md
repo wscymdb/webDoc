@@ -768,9 +768,9 @@ module.exports = {
 
 * 这种分包模式是`splitChunks`，它底层使用的是`SplitChunksPlugin`来实现的
 
-  * 改插件webpack以及默认安装和集成，只需要`提供SplitChunksPlugin相关的配置信息`即可
+  * 该插件webpack已经默认安装和集成，只需要`提供SplitChunksPlugin相关的配置信息`即可
 
-* webpack提供了SplitChunksPlugin默认的配置，我们也可以i手动来修改他的配置
+* webpack提供了SplitChunksPlugin默认的配置，我们也可以手动来修改他的配置
 
   * 比如默认配置中，chunks仅仅对于异步（`async`）请求，我们也可以设置为`all`
     * `import()`就属于异步,对于import语法的引入就会单独打包
@@ -1260,7 +1260,7 @@ mization: {
   * 这也是一个魔法注释
   * 他的作用是在使用Terser代码的时候，可以放心的删掉这段代码
 * 但是这时候其实是没有删除代码的，`因为development模式的时候，是不会开启minimize的`
-  * 我们可以将`minimizer:true`，这时候在打包代码可以发现sub函数没有了
+  * 我们可以将`minimize:true`，这时候在打包代码可以发现sub函数没有了
 * **所以usedExports方案实现Tree Shaking是要结合Terser的**
 
 
@@ -1275,7 +1275,7 @@ mization: {
   * 设置`false`：等于告诉webpack compiler可以安全的删除某些没有用到的导入文件
   * 如果我们希望`可以保留一些文件`，可以将`值设为数组`，那么`数组的文件`都`不会被删除`
 * **在开发中尽量使用纯模块开发，方便tree shaking**
-  * 纯模块和纯函数一样的到底，就是不会产生副作用
+  * 纯模块和纯函数一样的道理，就是不会产生副作用
 
 main.js
 
@@ -1877,7 +1877,7 @@ loaderSechema.json
 * **与同步异步结合的类别**
   * `bail：`当有返回值时，就不会执行后续的事件
   * `loop：`当返回值为true，就会反复执行该事件，当返回值为undefined或不返回内容，就退出该事件
-  * `waterfall：`当返回值不为undefined，会将这次的返回结果作为下一次事件的第一个蚕食
+  * `waterfall：`当返回值不为undefined，会将这次的返回结果作为下一次事件的第一个参数
   * `parallel：`并行，会同时执行事件
   * `series：`串行，会等待上一个事件执行完毕后才执行
 * 结合栗子
