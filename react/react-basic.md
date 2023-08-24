@@ -601,3 +601,23 @@ class App extends React.Component {
 
 ```
 
+# 3.React脚手架
+
+## 3.1.安装
+
+[create-react-app](https://create-react-app.dev/docs/getting-started)更多的配置方法
+
+**注意：项目名称不能有大写**
+
+```cmd
+# 没安装create-react-app使用
+yarn create react-app <appName>
+# 已经安装
+create-react-app <appName>
+```
+
+## 3.2.目录结构
+
+**有些目录结构最新版本的脚手架没有 不过这些东西我们不用 会手动删除**
+
+![目录结构](https://cdn.staticaly.com/gh/wscymdb/picx-images-hosting@master/algorithm/Snipaste_2023-08-17_10-38-18.3e48jttrzme0.webp)
