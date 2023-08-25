@@ -1762,3 +1762,364 @@ export default class App extends PureComponent {
 }
 ```
 
+# 14.CSS相关
+
+## 14.1.内联样式
+
+* **内联样式是官方推荐的一种css写法**
+  * style接受一个采用`小驼峰命名`属性的`js对象`，`不是CSS字符串`
+  * 且可以引用state中的状态来设置相关的样式
+* **内联样式的优点**
+  * 样式之间不会发生冲突
+  * 可以动态获取当前的state中的状态
+* **内联样式的缺点** 
+  * 写法上都需要使用驼峰标识
+  * 某些样式没有智能提示
+  * 大量的样式会导致代码混乱
+  * 某些样式无法编写(比如伪类、伪元素)
+
+```jsx
+export default class App extends PureComponent {
+  constructor() {
+    super()
+    this.state = {
+      fontSize: 10,
+      objStyle: {
+        color: 'green',
+        backgroundColor: 'yellow',
+      },
+    }
+  }
+  render() {
+    return (
+      <div>
+        <button
+          onClick={() => this.setState({ fontSize: this.state.fontSize + 2 })}
+        >
+          增加fontsize
+        </button>
+        <h1 style={{ color: 'red', fontSize: `${this.state.fontSize}px ` }}>
+          我是哈哈哈
+        </h1>
+        <h2 style={this.state.objStyle}>我是奔波儿霸</h2>
+      </div>
+    )
+  }
+}  
+```
+
+## 14.2.普通的CSS
+
+* 普通的CSS我们通常会编写到一个独立的文件，之后再引入到组件中
+* **但是这种会出现一个问题，普通的css会作用于全局，相同的的样式会被层叠掉**
+* 比如：A组件中有一个.c的class，B组件中也有.c的class  在A组件中引入样式，但是B组件的.c也会被污染，因为这种普通的css是作用域全局的
+
+## 14.3.CSS Modules
+
+* css modules并不是React特有的方案，而是所有使用了`webpack环境`的框架都能用
+
+  * 如果想要在项目中使用它，需要在`webpack.config.js`中设置`moduls:true`
+
+* React脚手架已经内置了css modules的配置
+
+  * 我们只需要将`.css/.less/.scss等样式文件`，修改为`.module.css/.module.less/.moudle.scss`
+
+* css modules确实解决了局部作用域的问题，这也是很多人喜欢在React中喜欢的一种方案
+
+  
+
+**缺陷**
+
+* 所有的`className都必须使用对象`的形式来编写
+* 不方便`动态的修改某些样式`，依然吸引使用内联样式
+
+
+
+**使用**
+
+* 将文件名改为.module.css
+* 引入的方式是变量方式
+
+
+
+App.module.css
+
+```css
+.title-1 {
+  color: red;
+}
+```
+
+
+
+```jsx
+import appSyle from './App.module.css'
+
+export class App extends PureComponent {
+  render() {
+    return (
+      <div>
+        <div className={appSyle['title-1']}>我是标题</div>
+      </div>
+    )
+  }
+}
+```
+
+## 14.4.CSS in JS
+
+* 'CSS-in-JS'是指`一种模式`，其中CSS由JS生成
+* 注意次功能并不是React的一部分，而是`由第三方库提供`
+* CSS-in-JS通过JS来为CSS赋予一些能力，包括类似于CSS预处理器一样的`嵌套、函数定义、逻辑复用、动态修改等`
+* 虽然CSS预处理器也具备某些能力，但是获取动态状态依然是一个不好处理的点
+
+**目前比较流行的CSS-in-JS库**
+
+* **`styled-components`**
+* emotion
+
+### 14.4.1.styled-components
+
+**安装**
+
+```cmd
+npm i styled-components
+```
+
+#### 14.4.1.1**基本使用**
+
+* styled-components的本质是`通过函数的调用`，最终`创建出一个组件`
+  * 这个组件会被自动添加上一个不重复的class
+  * styled-components会给该class添加相关的样式
+* 它支持类似CSS预处理器一样的样式嵌套等功能
+
+
+
+`样式的js文件`
+
+```js
+import styled from 'styled-components'
+
+// styled.div 如果想让渲染的是div那么就styled.div  如果想让渲染的是一个ul那么就是styled.ul
+// styled.div div其实就是一个函数  div``这种写法是模版字符串的函数调用
+export const AppWrapper = styled.div`
+  .section {
+    background-color: #ff0;
+    .title {
+      color: red;
+      &:hover {
+        background-color: green;
+      }
+    }
+  }
+`
+
+```
+
+`App组件`
+
+```jsx
+import React, { PureComponent } from 'react'
+
+import { AppWrapper } from './style'
+export class App extends PureComponent {
+  render() {
+    return (
+      // 样式中返回的是一个div 所以AppWrapper就是一个div 直接替换原本div的包裹即可
+      <AppWrapper>
+        <div className="section">
+          <div className="title">我是标题</div>
+          <p className="content">我是内容</p>
+        </div>
+      </AppWrapper>
+    )
+  }
+}
+```
+
+#### 14.4.1.2.动态传入样式
+
+
+
+
+
+**方式一：使用props和attrs（不常用）**
+
+* styled-components支持从 外部传入属性，还可以设置默认值
+
+
+
+样式js文件
+
+```js
+// 在调用函数的时候可以通过attrs设置一些变量
+export const FooterWrapper = styled.div.attrs({
+  sage: '12323',
+})`
+  /* 外界传入的值是在 props上  如果需要获取 需要写一个回调，styled-components会自动调用这个回调 且将props作为第一个参数传入 */
+  .title {
+    color: ${(props) => props.color};
+    /* 因为props事在函数中 所以返回的时候判断外界有没有传入值 没有的话可以设置默认值 */
+    font-size: ${(props) => props.size || '52'}px;
+  }
+`
+```
+
+App组件
+
+```jsx
+import { AppWrapper, FooterWrapper } from './style'
+export class App extends PureComponent {
+  render() {
+    return (
+      // 样式中返回的是一个div 所以AppWrapper就是一个div 直接替换原本div的包裹即可
+      <AppWrapper>
+        <div className="section">
+          <div className="title">我是标题</div>
+          <p className="content">我是内容</p>
+        </div>
+        {/* 给样式传入参数 */}
+        <FooterWrapper color="blue" size="18">
+          <div className="title">免责声明</div>
+        </FooterWrapper>
+      </AppWrapper>
+    )
+  }
+}
+```
+
+**方式二：（常用）**
+
+* 定一个js文件，这个文件中存放样式变量，然后引入到css-in-js的文件中使用，当某一天如果要变化样式，直接修改存放变量的js就行
+* 比如现在要定义颜色 可以在一个js文件中保存颜色的变量，在css-in-js文件中使用，当某天要变化颜色了 直接改变量就行
+
+
+
+`存放变量的js`
+
+```js
+export const primaryColor = '#af0'
+export const secondColor = '#f00'
+
+```
+
+`css-in-js文件`
+
+```js
+import styled from 'styled-components'
+import { primaryColor, secondColor } from './style/variable'
+
+export const AppWrapper = styled.div`
+  .section {
+    background-color: ${primaryColor};
+    .title {
+      color: red;
+      &:hover {
+        background-color: ${secondColor};
+      }
+    }
+  }
+`
+```
+
+
+
+#### 14.4.1.3.styled高级特性
+
+**支持样式的继承**
+
+```js
+const YMButton = styled.button`
+padding:8px
+`
+const YMWarnButton = styled(YMButton)`
+background:'#faf'
+`
+```
+
+**设置主题色**
+
+需要引入ThemeProvider组件 使用方法和Contex类似 只不过要用theme传递值
+
+```jsx
+// 引入组件
+import { ThemeProvider } from 'styled-components'
+export class App extends PureComponent {
+  render() {
+    return (
+      // 样式中返回的是一个div 所以AppWrapper就是一个div 直接替换原本div的包裹即可
+      <AppWrapper>
+       
+        {/* 通过ThemeProvider共享变量 */}
+        <ThemeProvider theme={{ color: 'red' }}>
+          <Home />
+        </ThemeProvider>
+      </AppWrapper>
+    )
+  }
+}
+```
+
+Home -> style.js
+
+直接通过props.theme获取即可
+
+```js
+import styled from 'styled-components'
+
+export const HomeWrapper = styled.div`
+  .title {
+    color: ${(props) => props.theme.color};
+  }
+`
+```
+
+## 14.5.classnames库
+
+* 这个库可以让我们像Vue那用动态的添加class
+* 当然不用这个库我们也能做的，但是会做很多的判断，是代码冗余
+
+
+
+**安装**
+
+```cmd
+npm i classnames
+```
+
+**使用**
+
+```jsx
+import classnames from 'classnames'
+
+export class App extends PureComponent {
+  render() {
+    return (
+      <div>
+        hhh
+        <div className={classnames('aaa', { bbb: true }, { ccc: false })}></div>
+      </div>
+    )
+  }
+}
+```
+
+**示例**
+
+[更多示例](https://github.com/JedWatson/classnames)
+
+```js
+classNames('foo', 'bar'); // => 'foo bar'
+classNames('foo', { bar: true }); // => 'foo bar'
+classNames({ 'foo-bar': true }); // => 'foo-bar'
+classNames({ 'foo-bar': false }); // => ''
+classNames({ foo: true }, { bar: true }); // => 'foo bar'
+classNames({ foo: true, bar: true }); // => 'foo bar'
+
+// lots of arguments of various types
+classNames('foo', { bar: true, duck: false }, 'baz', { quux: true }); // => 'foo bar baz quux'
+
+// other falsy values are just ignored
+classNames(null, false, 'bar', undefined, 0, 1, { baz: null }, ''); // => 'bar 1'
+```
+
