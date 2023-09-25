@@ -508,7 +508,7 @@ class App extends React.Component {
 * 三元运算符
 * 逻辑判断
 
-```js
+```react
 class App extends React.Component {
       constructor() {
         super()
