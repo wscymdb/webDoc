@@ -1664,7 +1664,7 @@ userRouter.get('/list', (ctx, next) => {
 mac中直接在terminal中输入, window需要在gitbash中输入
 
 // 1. 输入 openssl 进入 openssl
-opensssl
+openssl
 // 2. 生成密钥  rs256要求最低2048字节
 genrsa -out 密钥名称 字节
 // eg genrsa -out private.key 2048
