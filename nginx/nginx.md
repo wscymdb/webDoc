@@ -418,7 +418,7 @@ nginx有一个master进程和n(一般根据cpu核数)个worker进程，一个客
 
 
 
-我们可以这么做 ，在内存中开辟一块空间，这个空间会对所有的worker进行内存共享，这里面存放着所有的限制连接的数据，比如我们限制每秒钟每个IP只能连接一次，现在有一个IP给服务器发请求，这时候会分配到一个worker，这个worker就会往这个共享内存中写入一条数据 比如 ip地址为xxx的 在14:30:22的时候发起了一个请求，如此同时这个ip又发送了一个请求到这个服务器，被别的worker来处理了，这时候这个worker会先去共享空间查询一下是否存在限制，这时候正好有一条这个ip发的请求时间是在1秒内，那么这时候就不符合我们设置的1s内1一个IP只能发送1次请求，所以就会断开这次连接
+我们可以这么做 ，在内存中开辟一块空间，这个空间会对所有的worker进行内存共享，这里面存放着所有的限制连接的数据，比如我们限制每秒钟每个IP只能连接一次，现在有一个IP给服务器发请求，这时候会分配到一个worker，这个worker就会往这个共享内存中写入一条数据 比如 ip地址为xxx的 在14:30:22的时候发起了一个请求，建立了一次连接等信息，如此同时这个ip又发送了一个请求到这个服务器，被别的worker来处理了，这时候这个worker会先去共享空间查询一下是否存在限制，这时候正好有一条这个ip发的请求时间是在1秒内，那么这时候就不符合我们设置的1s内1一个IP只能发送1次请求，所以就会断开这次连接
 
 
 
@@ -451,7 +451,8 @@ http {
 **语法**
 
 ```
-# zone表示共享空间的名称 number：限制数量(每秒钟连接的数量)
+# zone表示共享空间的名称 number：限制数量(每个客户端每秒同时连接的数量)
+
 Syntax: limit_conn zone number
 Default: --
 Context: http、server、location
@@ -483,6 +484,8 @@ http {
         alias /opt/app;
         index blue.html;
       	# 共享空间是conn_zone 每秒钟同一个IP只能发起一个连接
+      	# 这里需要注意的是 一个连接可以发无数个请求
+      	# 虽然我们这里限制了1个连接。我们用ab测试的时候假如并发设置10 总的请求设置成10。可能10个请求都成功了 也肯只有一个请求成功 原因就是可能这10个请求都走的这个连接
         limit_conn conn_zone 1;
         # 断开连接的返回的状态码 默认503
         limit_conn_status 500; 
@@ -495,3 +498,58 @@ http {
 }
 ```
 
+### 5.4.4 请求限制
+
+**注意:** limit_req生效是在limit_conn之前
+
+
+
+**定义共享内存 语法**
+
+```
+# 因为请求限制的原理是依靠共享内存的 解释参考上面的共享连接内存
+# 所以要配置一下共享内存
+# key 一般使用客户端ip  zone 自定义名称 size 大小 rate 速率
+Syntax: limit_req_zone key zone=name:size rate=rate
+Default:--
+Context: http(定义在server以外)
+```
+
+
+
+**请求限制 语法**
+
+```
+# zone 共享内存名称
+# burst 下面具体讲解  nodelay 下面具体讲解
+Syntax: limit_req zone=name [burst=number] [nodelay]
+Default: --
+Context: http,server,location
+```
+
+
+
+**案例**
+
+```nginx
+# 定义了共享空间 key是IP地址。名称是req_zone 内存10m。每秒只能响应一条数据
+limit_req_zone $binary_remote_addr zone=req_zone:10m rate=1r/s;
+
+# 使用 ab -n 10 -c http://127.0.0.1/8888/req
+# 总请求数是10条 并发是1条
+# 我测试的是不到1s就发送了这个10条请求 所以成功的请求只有1条 失败了9条
+# 因为我们设置了每秒只能响应一条数据
+
+server {    
+    listen 8888;
+    server_name localhost;
+
+    location /req {
+        alias /opt/app;
+        index blue.html;
+        limit_req zone=req_zone; 
+    }
+}
+```
+
+### 5.4.5 burst参数
