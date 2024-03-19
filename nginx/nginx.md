@@ -594,7 +594,7 @@ server {
 
 ```
 
-### nodelay 参数
+### 5.4.6 nodelay 参数
 
 上面 burst 案例我们说到 浏览器一次发送了 10 条请求 ，然后成功响应了 6 条 耗费 5s 中 但是让用户等待 5s 是不好的行为
 
@@ -618,7 +618,71 @@ server {
 
 结合案例 我们设置了 nodelay 然后浏览器并发了 10 个请求
 
-第一个请求立即被处理，随后的请求直到数量达到 burst 值的限制都将立即获得处理，而不必等待。也就是说，如果同时到达 5 个请求，在开启了 nodelay 的情况下，这 5 个请求几乎会同时被处理。之后服务器将恢复到每秒处理一个请求的速率。
+第一个请求立即被处理，随后的请求直到数量达 到 burst 值的限制都将立即获得处理，而不必等待。也就是说，如果同时到达 5 个请求，在开启了 nodelay 的情况下，这 5 个请求几乎会同时被处理。之后服务器将恢复到每秒处理一个请求的速率。
 
 这样客户端就不用等待了 可以立马获取结果
+
+
+
+##  5.5 访问控制
+
+### 5.5.1 基于Ip地址的访问控制
+
+**模块名**
+
+```
+http_access_moudle
+```
+
+**作用**
+
+```
+可以设置允许访问的ip。也可以设置不允许访问的ip。有两种写法
+```
+
+**语法(allow)**
+
+```
+# 值可以是 IP地址 或者 all
+# 这个表示允许哪些可以访问
+Syntax: allow address|all
+Default: --
+Context: http,server.location.limit_except
+```
+
+**语法(deny)**
+
+```
+# 值可以是 IP地址 或者 all 或者 CIDR
+# 这个表示不允许哪个访问 也就是除了设置的地址其余的都能访问
+Syntax: deny address|CIDR|all
+Default: --
+Context: http,server.location.limit_except
+```
+
+**案例**
+
+```nginx
+http {
+  server {
+    location /admin {
+      alias /opt/app;
+      # 表示只要是这个ip访问/admin 都不允许访问
+      deny 119.120.221.100;
+      # 可以设置多个ip
+      deny 119.120.221.101;
+      # 可以和allow同时使用
+      allow 119.120.221.101;
+    }
+    
+    location /admin1 {
+      alias /opt/app;
+      # 表示只允许这个ip访问/admin1 其余ip地址访问/admin1都被拒绝
+      allow 119.120.221.100;
+      # 可以设置多个ip
+      allow 119.120.221.101;
+    }
+  }
+}
+```
 
