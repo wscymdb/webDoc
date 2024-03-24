@@ -1,6 +1,52 @@
 # 1.介绍
 
+## 1.1 nginx优势
 
+
+
+* **高并发高性能**
+* **可拓展性好**
+  * nginx源码内核非常小，功能不多，但是他的每个功能都是通过模块实现的，所以可以通过添加和删除模块来实现不同的功能，且非常方便二次开发
+* **高可靠性**
+* **热部署**
+  * 类似于前端的热更新，而且是丝滑部署，当更新配置的时候，会产生一个.old后缀的文件，比如a客户端正在访问，这时候更新了配置，这时候会将老的配置生成.old后缀的文件 那么a客户端会继续访问.old后缀配置相关的内容，现在b客户端来访问，就会访问新的配置文件
+* **开源许可证**
+
+
+
+## 1.2 nginx的架构
+
+### 1.2.1 轻量
+
+* 源码只包含核心模块
+* 其他非核心功能都是通过模块实现的，可自由选择
+
+### 1.2.2 架构
+
+nginx采用的是多进程(单线程)和多路IO复用模型
+
+
+
+### 1.2.3 工作流程
+
+* Nginx在启动后，会有一个master进程和多个相互独立的worker进程
+* master进程接收到请求后，会把这个请求分配给worker进程，所以每个worker进程都可能会处理这个请求(有可能第一个worker处理，也可能第二个worker处理)
+* master进程能监控worker进程的运行状态，当worker进程退出后(异常情况下)，会启动新的worker进程
+
+[工作流程图](https://excalidraw.com/#json=tvponPHAvQTD7eXarIzyw,PSCPS4j4Fb8198InfMruOA)
+
+
+
+* worker进程数，一般会设置成机器的cpu核数，因为更多的worker数，只会导致进程相互竞争cpu，从而带来不必要的上下文切换
+* 使用多进程模式，不仅能提高并发率，而且进程之间相互独立，一个worker进程挂了不会影响到其他worker进程
+
+
+
+**举例**
+
+比如现在酒店有领班的，领班的会分配不同服务员接待的区域，领班一般是不会去接待的，他只负责统筹服务员，比如现在有一个服务员要请假了，那么他就会赶紧安排新的服务员去负责这片区域。
+
+那么master就相当于领班，当有worker进程挂了，会启动新的worker进程
 
 
 
@@ -684,5 +730,42 @@ http {
     }
   }
 }
+```
+
+# 6 静态资源web服务器
+
+## 6.1 静态资源和动态资源
+
+* 静态资源：一般客户端发送请求到web服务器，web服务器从内存再取到相应的文件，返回给客户端，客户端解析并渲染出来
+* 动态资源：一般客户端请求的动态资源，现将请求将于web容器，web容器连接数据库，数据库处理数据之后，将内容交给web服务器，web服务器返回给客户端解析渲染处理
+
+## 6.2 CDN
+
+* CDN全称是Content Delivery Network，即内容分发网络
+* CDN系统能够实时的根据网络流量和各节点的连接、负载状况以及到用户的距离和响应时间等综合信息将用户的请求重新导向离用户最近的服务器节点上。其目的是使用户可以就近去的所需内容，解决网络拥挤的状况，提高用户访问房展的响应速度。
+
+## 6.3 gzip
+
+```nginx
+  # 图片就不开启gzip压缩了 因为本身图片就是被压缩过的
+        location ~ .*\.(jpg|jpeg|png|gif) {
+            gzip off;
+            root /usr/share/nginx/html;
+        }
+
+        location ~ .*\.(html|js|css) {
+            gzip on;
+            gzip_min_length 1k;
+            gzip_http_version 1.1;
+            gzip_comp_level   9;
+            gzip_types text/css application/javascript;
+            root /usr/share/nginx/html;
+        }
+
+        location ~ ^download {
+           gzip_static on;
+           tcp_nopush on;
+           root /usr/share/nginx/html;
+        }
 ```
 
