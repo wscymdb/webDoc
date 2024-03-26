@@ -736,18 +736,135 @@ http {
 
 ## 6.1 静态资源和动态资源
 
-* 静态资源：一般客户端发送请求到web服务器，web服务器从内存再取到相应的文件，返回给客户端，客户端解析并渲染出来
-* 动态资源：一般客户端请求的动态资源，现将请求将于web容器，web容器连接数据库，数据库处理数据之后，将内容交给web服务器，web服务器返回给客户端解析渲染处理
+* **静态资源**：一般客户端发送请求到web服务器，web服务器从内存再取到相应的文件，返回给客户端，客户端解析并渲染出来
+
+```nginx
+# 比如我想访问某个图片 那么直接会从文件夹去拿，这就是静态资源
+http {
+  server {
+     location ~ .*\.(jpg|jpeg|png|gif) {
+            root /usr/share/nginx/html;
+        }
+  }
+}
+```
+
+* **动态资源**：一般客户端请求的动态资源，现将请求将于web容器，web容器连接数据库，数据库处理数据之后，将内容交给web服务器，web服务器返回给客户端解析渲染处理
+
+```nginx
+# 现在所有的api开头的请求都会被代理到http://localhost:3000 这就是动态资源
+http {
+  server {
+    location ~ ^/api {
+            rewrite ^/api/(.*) /$1 break;
+            proxy_pass  http://localhost:3000;
+        }
+  }
+}
+```
 
 ## 6.2 CDN
 
 * CDN全称是Content Delivery Network，即内容分发网络
 * CDN系统能够实时的根据网络流量和各节点的连接、负载状况以及到用户的距离和响应时间等综合信息将用户的请求重新导向离用户最近的服务器节点上。其目的是使用户可以就近去的所需内容，解决网络拥挤的状况，提高用户访问房展的响应速度。
 
-## 6.3 gzip
+**案例**
 
 ```nginx
-  # 图片就不开启gzip压缩了 因为本身图片就是被压缩过的
+```
+
+
+
+## 6.3 tcp_nopush和tcp_nodelay
+
+**tcp_nopush**
+
+* 在开启sendfile的情况下，会合并多个数据包，提高网络包的传输效率
+* 假如我们现在在下载电影，每秒都会响应数据 这时候开启这个就会合并多个响应 比如每3秒响应一次 
+
+```
+Syntax: tcp_nopush on/off
+Default: off
+Context: http、server、location
+```
+
+
+
+**tcp_nodelay**
+
+* 在keepalive连接下，提高网络包的实时传输性
+* 假如现在每秒响应一个数据，那么nginx会立刻响应，一般用于需要实时传输数据的情况，比如游戏数据 
+
+```
+Syntax: tcp_nodelay on/off
+Default: on
+Context: http、server、location
+```
+
+
+
+## 6.4 gzip
+
+**gzip**
+
+* 控制gzip压缩率的
+* 压缩比率越高，文件被压缩的体积越小，对应的加载资源的速度就越慢
+* 1-9级别
+
+```
+Syntax: gzip on/off
+Default: off
+Context: http、server、location
+```
+
+
+
+**gzip_comp_level**
+
+* 控制gzip压缩率的
+* 压缩比率越高，文件被压缩的体积越小，对应的加载资源的速度就越慢
+* 1-9级别
+
+```
+Syntax: gzip_comp_level level
+Default: 1
+Context: http、server、location
+```
+
+
+
+**gzip_http_version**
+
+* 用于识别http协议的版本，早期的浏览器不支持gzip压缩，用户会看到乱码，所以为了支持前期版本加了此选项。默认在http/1.0的协议下不开启gzip压缩。
+
+```
+Syntax: gzip_http_version 1.0/1.1
+Default: gzip_http_version 1.1
+Context: http、server、location
+```
+
+
+
+**http_gzip-static_module**
+
+* 如果我们每次都在nginx中进行gzip压缩，那么假如现在并发1000个请求那么就要执行1000次gzip，性能肯定是不高的
+* 如果启用了这个模块，就会先在文件夹中找到同名的`gz`文件是否存在
+* 比如现在有接口来找a.txt,那么nginx会先将a.txt压缩(不会动原文件)然后才返回，现在我们直接将a.txt压缩成`a.txt.gz`，当请求过来 会先找`a.txt.gz`文件，然后直接返回
+
+```
+Syntax: gzip_static on/off
+Default: off
+Context: http、server、location
+```
+
+
+
+**案例**
+
+```nginx
+http {
+  server {
+      # 图片就不开启gzip压缩了 因为本身图片就是被压缩过的
         location ~ .*\.(jpg|jpeg|png|gif) {
             gzip off;
             root /usr/share/nginx/html;
@@ -755,9 +872,11 @@ http {
 
         location ~ .*\.(html|js|css) {
             gzip on;
+      			# 当返回内容大于此值时才会使用gzip进行压缩,以K为单位,当值为0时，所有页面都进行压缩。
             gzip_min_length 1k;
             gzip_http_version 1.1;
             gzip_comp_level   9;
+            #设置需要压缩的MIME类型,如果不在设置类型范围内的请求不进行压缩
             gzip_types text/css application/javascript;
             root /usr/share/nginx/html;
         }
@@ -767,5 +886,7 @@ http {
            tcp_nopush on;
            root /usr/share/nginx/html;
         }
+  }
+}
 ```
 
