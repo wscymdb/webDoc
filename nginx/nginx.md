@@ -881,7 +881,7 @@ http {
             root /usr/share/nginx/html;
         }
 
-        location ~ ^download {
+        location ~ ^/download {
            gzip_static on;
            tcp_nopush on;
            root /usr/share/nginx/html;
