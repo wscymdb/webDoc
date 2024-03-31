@@ -890,3 +890,224 @@ http {
 }
 ```
 
+# 7 浏览器缓存
+
+nginx天生就支持浏览器缓存策略，也就是响应的时候会携带etag和last-modified字段，所以不用做任何配置
+
+
+
+[浏览器缓存](https://excalidraw.com/#json=Pp460J3hFs7VN19GFMzqz,IB7-UgLaR8RzbbEsl0IfaA)
+
+
+
+唯一需要配置的就是过期时间
+
+
+
+## 7.1 expires
+
+注意如果设置了expires就相当于使用强制缓存了
+
+
+
+**作用**
+
+```
+添加Cache-Control、Expires头
+```
+
+**语法**
+
+```
+Syntax: expires time
+Default: off
+Context: http、server、location
+```
+
+
+
+**案例**
+
+* 理论上设置了expires，当时间没过期，那么当我再次请求这个图片的时候就不会想服务器发送请求，而是直接使用缓存
+* 但是因为浏览器的差异，如果使用的是chrome那么即使设置了expires，没有过期，还是会发送请求，IE不会发送可以试一下
+* 如果使用的是img标签src等于这种图片，那么chrome就不会向服务器发送请求，而是直接使用缓存，这个请求的status是(200 OK (from memory cache))
+
+```nginx
+http {
+  server {
+      location ~ .*\.(jpg|jpeg|png|gif) {
+      		# 过期时间24小时
+          expires 24h;
+          root /usr/share/nginx/html;
+      }
+  }
+}
+```
+
+# 8 跨域
+
+解决跨域其实原理就是添加一个响应头
+
+
+
+**语法**
+
+```
+Syntax: add_header name value
+Default: --
+Context: http、server、location
+```
+
+**案例**
+
+```nginx
+http {
+  server {
+     location ~ ^/api {
+      			# 添加一个响应头 允许所有源
+            add_header Access-Control-Allow-Origin *;
+            # 添加一个响应头 允许的方法是什么
+            add_header Access-Control-Allow-Methods GET,POST;
+            rewrite ^/api/(.*) /$1 break;
+            proxy_pass  http://localhost:3000;
+            
+        }
+  }
+}
+```
+
+# 9 防盗链
+
+* 防止网站资源被盗用
+* 保证信息安全
+* 防止流量过量
+* 区别哪些请求是非正常的请求
+
+**什么是**
+
+```
+比如现在a网站有一个图片，在没有设置防盗链的情况下 任何网站拿到这个图片的url都可以显示，但是这有一个问题，比如现在b网站显示的全部是a网站的图片的，那么b网站就不用在服务器里存储图片了，直接使用a网站的链接即可，这肯定是不允许的  所以我们可以设置防盗链 设置允许哪些网站可以访问我们服务器的资源，那些不被允许的网站想要链接我们网站的资源就会报错304(没权限)
+
+原理
+当浏览器发起请求时会在requestHeader中携带Referer字段  那么nginx就是通过这个字段的值和我们设置允许访问的值做比对，进而判断是否有权限
+
+注意 当直接在浏览器输入资源地址请求头中是没有Referer的 所以配置的时候要是不允许浏览器地址栏访问 就不要在规则中设置none
+```
+
+**语法**
+
+```
+# server_names、IP是必填的 none、block可以不存在
+Syntax: valid_referers none、block、server_names、IP
+Default: --
+Context: server、location
+```
+
+**案例**
+
+```nginx
+http {
+  server {
+     location ~ .*\.(jpg|jpeg|png|gif) {
+      			# 配置允许访问的地址。当none(请求头没有referer或者值是空) 或者 bolcked 或者192.168.1.112地址
+            valid_referers none blocked 192.168.1.112;
+      			# 如果不是允许的地址 返回403
+            # $invalid_referer系统自带的变量 可以捕获到valid_referers之外的内容
+            if ($invalid_referer) {
+                return 403;
+            }
+
+            root /usr/share/nginx/html;
+        }
+  }
+}
+```
+
+# 10 代理服务
+
+**代理服务分成正向代理和反向代理**
+
+
+
+**语法**
+
+```
+Syntax: proxy_pass URL
+Default: --
+Context: server、location
+```
+
+
+
+## 10.1 正向代理
+
+* 正向代理的对象是客户端，服务端看不到真正的客户端
+
+**案例**
+
+```nginx
+# 假如www.jetli.com.cn我们现在的网络访问不了
+# 然后我们就可以让nginx进行代理 进而访问该网站
+# 这里要注意 要修改本地的hosts文件要让www.jetli.com.cn域名指向我们的服务器
+# 不然我们的服务器拦截 不了
+
+http {
+    server {
+   # chrome的域名解析地址 一定要写不然输入域名解析不了
+   resolver 8.8.8.8;
+
+    listen  7777;
+    # 这里一定要配置想要访问的域名 不然进不来nginx
+    server_name localhost www.jetli.com.cn;
+
+    location / {
+      # $http_host 请求的主机名
+      # $request_uri  请求路径
+      # 假如我们在地址栏请求 www.jetli.com.cn/abc
+      # 那么$http_host就是 www.jetli.com.cn
+      # $request_uri就是/abc
+       proxy_pass http://$http_host$request_uri;
+    }
+  }
+  
+  # 我们还可以使用正向代理 代理外网
+  # 比如我们有一个香港的服务器
+  # 然后做如下配置
+  # 然后当访问7777端口就会代理到yutube了
+  server {
+    listen  7777;
+    server_name localhost;
+
+    location / {
+       proxy_pass http://www.yutube.com;
+    }
+  }
+
+}
+
+
+```
+
+
+
+## 10.2 反向代理
+
+* 反省代理的对象是服务端，客户端看不到真正的服务端
+
+**案例**
+
+```nginx
+http {
+  server {
+    location ~ ^/api {
+            rewrite ^/api/(.*) /$1 break;
+            # 设置正向代理 
+      			# 客户端本来想访问http://localhost:3000 
+      			# 但是实际上访问的是nginx 然后nginx去访问3000端口 然后结果给到客户端
+            proxy_pass  http://localhost:3000;
+            
+        }
+  }
+}
+```
+
