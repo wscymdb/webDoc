@@ -1,4 +1,4 @@
-# 1.介绍
+#  1.介绍
 
 ## 1.1 nginx优势
 
@@ -768,6 +768,25 @@ http {
 * CDN全称是Content Delivery Network，即内容分发网络
 * CDN系统能够实时的根据网络流量和各节点的连接、负载状况以及到用户的距离和响应时间等综合信息将用户的请求重新导向离用户最近的服务器节点上。其目的是使用户可以就近去的所需内容，解决网络拥挤的状况，提高用户访问房展的响应速度。
 
+
+
+* 如果想要把nginx作为CDN服务器可以做以下的优化配置，不做也无所谓
+
+
+
+**语法**
+
+
+
+```
+# 不经过用户内核发送文件 
+Syntax: sendfile on/off
+Default: off
+Context: http、server、location、if in location
+```
+
+
+
 **案例**
 
 ```nginx
@@ -1105,11 +1124,81 @@ http {
       			# 客户端本来想访问http://localhost:3000 
       			# 但是实际上访问的是nginx 然后nginx去访问3000端口 然后结果给到客户端
             proxy_pass  http://localhost:3000;
+            # 向代理的服务器传递头信息
+      			proxy_set_header Host $http_host; 
+            proxy_set_header X-Real-Ip $remote_addr;
+      
+            proxy_connect_timeout 30; # 默认超时时间 单位s
+            proxy_send_timeout 60; # 请求代理服务器 代理服务器响应的超时时间
+            proxy_read_timeout 60; # 读取代理服务器的响应 比如60s还没读取完毕 也算超时
             
         }
   }
 }
 ```
+
+## 10.3 proxy_pass
+
+* 为了方便记忆和规范配置，建议所有的`proxy_pass`后的url都以`/`结尾
+
+
+
+* `proxy_pass`后的url最后加上`/`就是绝对根路径，`location`中匹配到的路径会被替换掉
+
+```nginx
+# 请求的地址是 http://www.example.com/a/text.html
+# 然后就会代理到 http://127.0.0.1/b/text.html
+
+# /a/被替换掉了	直接走代理的路径了
+
+# 请求的地址是 http://www.example.com/a/
+# 然后就会代理到 http://127.0.0.1/b/
+
+http {
+  server {
+    location /a/ {
+      proxy_pass http://127.0.0.1/b/;
+    }
+  }
+}
+```
+
+
+
+* `proxy_pass`后的url最后不加上`/`就是绝对根路径，`location`中匹配到的路径会保留
+
+```nginx
+# 请求的地址是 http://www.example.com/a/text.html
+# 然后就会代理到 http://127.0.0.1/a/text.html
+
+# /a/没有被替换掉
+
+http {
+  server {
+    location /a/ {
+      proxy_pass http://127.0.0.1;
+    }
+  }
+}
+```
+
+
+
+* 在`proxy_pass`前面用了`rewrite`，这种情况下 `proxy_pass`是无效的
+
+```nginx
+# 这种情况下proxy_pass无效
+http {
+  server {
+    location /a/ {
+      rewrite /a/ break;
+      proxy_pass http://127.0.0.1;
+    }
+  }
+}
+```
+
+
 
 # 11 负载均衡
 
@@ -1182,6 +1271,352 @@ server {
 
   location / {
     proxy_pass http://cym;
+  }
+}
+```
+
+## 11.2 分配方式
+
+* 上面说到 分配服务器的方式默认是轮询，下面是不同的分配方式
+
+| 类型                             | 含义                                                         |
+| -------------------------------- | ------------------------------------------------------------ |
+| 轮询(默认)                       | 每个请求按时间顺序逐一分配到不同的后端服务器，如果后端服务器down掉，能自动剔除 |
+| weight(加权轮询)                 | 指定权重，权重越高分配到的几率越大                           |
+| ip_hash                          | 每个请求按照ip的hash结果分配，这样如果是同一个ip的请求就分配给之前分配到的服务器，不用分配新的服务器 |
+| least_conn                       | 哪个机器上的连接数少就分配给谁                               |
+| url_hash(三方，需要安装对应模块) | 按访问的url地址hash来分配，就是说如果访问的url地址相同的话就会分配到同一个服务器上 |
+| fair(三方的，需要安装对应模块)   | 按照后端服务器的响应时间来分配请求，响应时间短的优先分配     |
+| 自定义hash                       | hash自定义key                                                |
+
+**举例**
+
+```nginx
+# 这些值 每个服务器可以设置也可以不设置
+upstream cym {
+  ip_hash;
+  server 127.0.0.1:3000;
+}
+
+upstream cym1 {
+  least_conn;
+  server 127.0.0.1:3000;
+}
+
+upstream cym2 {
+  server 127.0.0.1:3000 weight=2;
+  server 127.0.0.1:4000 weight=3;
+  server 127.0.0.1:5000;
+}
+
+server {
+  listen 7001;
+  server_name localhost;
+
+  location / {
+    proxy_pass http://cym;
+  }
+}
+```
+
+
+
+# 12 日志
+
+## 12.1 日志类型
+
+* 访问日志 /var/log/nginx/accsess.log
+* 错误日志 /var/log/nginx/error.log
+
+
+
+**语法**
+
+```
+Synatx: log_format name [escape=default[json] string]
+Default: log_format combined ''
+Context: http
+```
+
+
+
+## 12.2 内置变量
+
+* 下面是部分常用的，具体的看官网
+
+| 名称             | 含义                       |
+| ---------------- | -------------------------- |
+| $remote_addr     | 客户端地址                 |
+| $remote_user     | 客户端用户名称             |
+| $time_local      | 访问时间和时区             |
+| $request         | 请求行                     |
+| $status          | HTTP请求状态               |
+| $body_bytes_sent | 发送给客户端文件的内容大小 |
+
+## 12.3 http请求变量
+
+* 注意要把请求头中的`-`转为`_`，比如User-Anget对应`$http_user_agent`
+* 比如想要查看请求头的`Accept-Language` 只要这样即可 `$http_Accept_Language`
+
+| 名称             | 含义       | 举例                          |
+| ---------------- | ---------- | ----------------------------- |
+| arg_PARAMETER    | 请求的参数 | $arg_name 查看key是name的参数 |
+| http_HEADER      | 请求头     | $http_referer                 |
+| sent_http_HEADER | 响应头     | sent_http_cookie              |
+
+**FAQ**  比如现在有一个ip是通过代理来访问的，怎么可以获取源头的IP呢
+
+
+
+可以通过`$http_x_forwarded_for`, 他会获取到代理过程
+
+比如： IP1>IP2(代理)->IP3   IP1通过IP2代理到IP3   这个时候$http_x_forwarded_for=IP，proxy(1),Proxy(2) IP
+
+
+
+# 13 location
+
+## 13.1 语法规则
+
+* location仅匹配URL，忽略参数
+  * 访问/a?name=zs 只会匹配/a 不会匹配/a?name=zs
+* **前缀字符串匹配有以下3种**
+  * 常规匹配
+  * =精确匹配
+  * ^~匹配上后则不会进行正则匹配 `这里的^表示取反的意思`
+* **正则匹配**
+  * ~大小写敏感的正则表达式匹配
+  * ~*忽略大小写的正则表达式匹配
+* **内部跳转**
+  * 用于内部跳转的命名location @
+
+**语法**
+
+```
+Synatx: location [=|~|~*|^~] uri {...}
+Default: -
+Context: server,location
+```
+
+
+
+**案例**
+
+```nginx
+http {
+  server {
+     # 精确匹配 路径必须是/cym  
+        location = /cym {
+            return 200 "精确匹配cym";
+        }
+
+        # 常规匹配 匹配的是/api前缀
+        location /api {
+            return 200 "常规匹配 匹配/api开头的";
+        }
+
+        # 忽略正则的匹配
+        # 如果匹配到这个 后面有个location是 ~ /user
+        # 那么会使用这个 而不使用正则的匹配
+        location ^~ /user {
+            return 200 "忽略正则匹配";
+        }
+
+        # 正则匹配 区分大小写 匹配 /post/数字
+        # 使用 ～ 开头
+        location ~ /post/(\d+) {
+            return 200 "正则匹配 区分大小写  $1";
+        }
+
+        # 正则匹配 不区分大小写 
+        # /Link/1  /LiNk/1 这样都能匹配到
+        # 使用 ～* 开头
+        location ~* /LINK/(\d+) {
+            return 200 "正则匹配 不区分大小写  $1";
+        }
+  }
+}
+```
+
+## 13.2 匹配规则
+
+**优先级按照顺序**
+
+1. 等号类型(=)的优先级最高，一旦匹配成功，则不在查找其他匹配项
+2. ^~类型表达式，一旦匹配成功，则不在查找其他匹配项
+3. 正则表达式类型(~,~*)的优先级次之，如果多个location的正则匹配的话，则使用表达式最长的那个
+4. 常规字符串类型按前缀匹配
+
+
+
+**案例**
+
+```nginx
+http {
+  server {
+       location ~ /T1/\d+ { # 编号1
+            return 200 "cym";
+        }
+
+        location ~ /T1/\d+/a { # 编号2
+            return 200 "kkkk";
+        }
+
+        location /a { # 编号3
+            return 200 "字符串匹配";
+        }
+
+        location /a/b/c { # 编号4
+            return 200 "最长字符串";
+        }
+  }
+}
+
+# FQA
+
+# Q：输入http://localhost/T1/2/a 会走哪个location
+# A：编号1。 想法上会是编号2,因为路径完全符合编号2 因为顺序不同，正则匹配会按照顺序优先匹配
+
+# Q：输入http://localhost/a/b/c/d 会走哪个location
+# A：编号4。 想法上会是编号3, 因为路径匹配/a前缀了，但是匹配前缀规则是按照最长表达式来匹配的 因为/a/b/c/d 符合 location /a/b/c 
+```
+
+
+
+# 14 rewrite
+
+**语法**
+
+```
+# flag:用来设置rewrite对URI的处理行为
+Synatx: rewrite regex replacement [flag]
+Default: -
+Context: server,location,if
+```
+
+* 如果正则表达式(regex)匹配到了请求得到URI，这个URI会被后面的replacement替换
+* rewrite的定向会根据他们在配置文件中出现的顺序依次执行
+* 通过flag可以终止定向后进一步的处理
+
+
+
+**用途**
+
+* URL页面跳转
+* 兼容旧版本
+* SEO优化(伪静态)
+* 维护(后台维护、流量转发)
+* 等
+
+
+
+**案例**
+
+```nginx
+http {
+  server {
+    location / {
+      # 如果url符合^(.*)$正则 则会打开root路径下的back.html
+            rewrite ^(.*)$ /back.html break;
+        }
+    
+    location /bd {
+      # 如果url符合^(.*)$正则 则会跳转baidu官网
+            rewrite ^(.*)$ http://www.baidu.com break;
+        }
+  }
+}
+```
+
+## 14.1 flag参数
+
+**flag:用来设置rewrite对URI的处理行为**
+
+| flag      | 含义                                                         |
+| --------- | ------------------------------------------------------------ |
+| last      | 先匹配自己的location，然后通过rewrite规则新建一个请求再次请求服务端 |
+| break     | 先匹配自己的location，然后生命周期会在当前的location结束，不再进行后续的匹配 |
+| redirect  | 返回302临时重定向，以后还会请求这个服务器                    |
+| premanent | 返回301永久重定向，以后会直接请求永久重定向后的域名          |
+
+**last**
+
+* 结束当前的请求处理，用替换后的URI重新匹配location
+* 可以理解为重写(rewrite)后，发起了一个新的请求，进入server模块，匹配location
+* 如果重新匹配循环的次数超过了10次，nginx会返回500的错误
+* 返回的200的状态码。
+
+```nginx
+# 如果符合location 那么则会使用/test在server模块中重新进行匹配
+# 所以会返回200的状态码
+
+http {
+  server {
+    location ~  ^/last {
+            rewrite ^/last /test last;
+        }
+        location /test {
+            return 200 "hh你好";
+        }
+  }
+}
+```
+
+**break**
+
+* 结束当前的请求处理，使用当前资源，不在执行当前location的余下语句
+* 返回301 状态码
+* 浏览器地址显示从定向后的url
+
+```nginx
+
+http {
+  server {
+       location ~  ^/break1 {
+            # 会把^/break1替换成/test
+            # 相当于使用这个路径 http://location/test
+            # 那么其实就是去找。 /test/index.html
+            rewrite ^/break1 /test break;
+            index index.html;
+            # 不在执行这个语句
+            rewrite ^/break /test break;
+        }
+  }
+}
+```
+
+**redirect**
+
+* 临时跳转，返回302 http状态码
+* 浏览器地址显示重定向后的url
+* 临时重定向，下次请求还走nginx
+
+```nginx
+http {
+  server {
+    location ~ ^/redirect {
+            rewrite ^/redirect http://www.baidu.com redirect;
+        }
+  }
+}
+```
+
+
+
+
+
+**permanent**
+
+* 永久跳转，返回301 http状态码
+* 浏览器地址显示重定向后的url
+* 永久重定向，下次请求不走nginx，直接访问重定向的地址
+
+```nginx
+http {
+  server {
+    location ~ ^/permanent {
+            rewrite ^/permanent http://www.qq.com permanent; 
+        }
   }
 }
 ```
