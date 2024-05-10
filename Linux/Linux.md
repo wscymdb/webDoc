@@ -1,3 +1,5 @@
+
+
 # 1.Linux常用命令
 
 ## 1.1 Linux常见目录
@@ -459,5 +461,120 @@ find /root -nouser
 ```shell
 # 在当前目录下查询 文件是5天前修改的文件
 find . -mtime +5
+```
+
+
+
+#### 按文件大小搜索
+
+* k要小写
+* M要大写
+
+| 参数 | 含义   |
+| ---- | ------ |
+| -8k  | 小于8K |
+| 8k   | 等于8K |
+| +8k  | 大于8K |
+| +8M  | 小于8M |
+
+```shell
+# 在当前目录下查找大于8k的文件
+find . -size +8k
+
+# 在当前目录下查找大于8M的文件
+find . -size +8M
+
+# 在当前目录下查找大于8k且小于1M的文件
+# -a 表示and 逻辑与 两个都满足
+find . -size +8k -a -size -1M
+
+# 在当前目录下查找大于1k或大于1M的文件
+# -o 表示or 逻辑或 两个满足一个即可
+find . -size -8k -o -size +1M
+
+```
+
+### 1.4.6 grep
+
+* 在文件中寻找匹配的字符串
+
+  * `-i` 忽略大小写
+  * `-v` 排除指定字符串
+
+  
+
+```shell
+# 在a.txt中寻找有a的字符串
+grep a  a.txt 
+
+# 在a.txt中寻找有a的字符串 且忽略大小写 
+grep a -i a.txt 
+
+# 在a.txt中寻找有除了a的所有字符串 且忽略大小写 
+grep a -i -v a.txt 
+```
+
+ 
+
+## 1.5 压缩与解压命令
+
+### 1.5.1 zip格式
+
+| 功能       | 命令                             |
+| ---------- | -------------------------------- |
+| 压缩文件   | zip 压缩文件名.zip 源文件        |
+| 压缩文件夹 | zip -r 压缩文件夹名.zip 源文件夹 |
+| 解压       | unzip 解压文件(夹)名.zip         |
+
+
+
+**举例**
+
+```shell
+# 如果没有zip或者unzip就安装一下
+yum install zip unzip
+
+# 压缩msg.txt文件 msg11.zip表示要压缩过后的文件的名称
+zip  msg11.zip  msg.txt
+
+# 压缩book文件夹
+zip book.zip book
+
+# 解压book.zip
+unzip book.zip
+```
+
+
+
+### 1.5.2 gzip
+
+* gzip为高压缩，可以把文件压缩的更小
+* gzip`不能压缩文件`夹只能压缩文件
+
+**举例**
+
+```shell
+# 注意gzip压缩文件会把源文件干掉
+
+
+# 压缩book.txt
+gzip book.txt
+
+
+# 压缩book.txt且保留源文件
+# 使用-c命令
+# -c会拿到gzip压缩book.txt返回的文件 然后使用 > 将返回值给到 book.txt.gz(自动创建)文件 所以就不会干掉源文件了
+# 给的文件要使用后缀名加.gz  不然解压的时候去掉.gz后缀源文件就没有后缀了  book.txt.gz 
+gzip -c book.txt > book.txt.gz
+
+
+# 压缩目录
+# 这里的压缩目录并不是真的压缩目录而是压缩该目录下的所有文件
+# 使用-r命令
+gzip -r book
+
+# 解压 
+# 使用 -d
+gzip -d book.txt.gz
 ```
 
