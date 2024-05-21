@@ -125,7 +125,8 @@ function CounterH() {
 
 
 
-* **React会在组件更新和卸载的时候 `先执行清除操作(useEffect返回的回调)` ，`再执行effect中的内容`**
+* **React会在组件更新阶段 `先执行清除操作(useEffect返回的回调)` ，`再执行effect中的内容`**
+* **React会在组件卸载阶段 `只执行清除操作(useEffect返回的回调)`**
 
 ### 2.3.2.使用多个Effect
 
