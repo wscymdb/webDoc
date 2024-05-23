@@ -1235,7 +1235,10 @@ chmod a+x 3.txt
 
 # 修改文件夹的权限和修改文件的权限方法一样
 # 举例 给demo文件夹让其他人可执行(目录的可执行就是可进入当前目录)
-chmod o+x demo 
+chmod o+x demo
+
+# 也可以同时添加多个权限
+chmod u+rwx
 ```
 
 ### 4.1.3 数字权限
@@ -1528,5 +1531,4 @@ root ALL=(ALL)  ALL
 # ALL：最后一个 ALL 表示 root 用户可以运行所有命令。
 
 ```
-
 
