@@ -1409,6 +1409,12 @@ function useState<Type>(initialState: Type): [Type, (newState: Type) => void] {
 const [count, setCount] = useState(100);
 const [message, setMessage] = useState("hello world");
 const [banners, setBanners] = useState<any[]>([]);
+
+
+// 函数表达式使用泛型
+const foo = <T,>(arg:T):T => {
+ // todo
+}
 ```
 
 **泛型支持传入多个类型**
