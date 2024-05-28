@@ -1498,4 +1498,47 @@ git branch -D <branchname>
   git push origin -d <remotebranchname>
   ```
 
-  ### 7.11.
+## 7.11. commit操作相关
+
+**修改你最近一次的 Git commit 信息**
+  你可以使用以下命令来修改你最近一次的 Git commit 信息：
+
+```bash
+git commit --amend
+```
+
+这将打开你的默认文本编辑器，你可以在其中编辑提交消息。保存并关闭编辑器后，新的提交消息将替换旧的。
+
+如果你已经推送了这个提交到远程仓库，你需要强制推送更新：
+
+```bash
+git push --force
+```
+
+请注意，强制推送可能会覆盖其他人的工作，所以在团队协作时要谨慎使用。
+
+如果你需要修改更早的提交，可以使用交互式 rebase：
+
+1. 首先，启动交互式 rebase，指定你想要修改的提交之前的一个提交：
+
+    ```bash
+    git rebase -i HEAD~n
+    ```
+
+    其中 `n` 是你想要回溯的提交数量。
+
+2. 在打开的编辑器中，将你想要修改的提交前的 `pick` 改为 `edit`。
+
+3. 保存并关闭编辑器。Git 会暂停在你指定的提交上。
+
+4. 使用 `git commit --amend` 修改提交信息。
+
+5. 使用 `git rebase --continue` 继续 rebase 过程。
+
+6. 最后，强制推送更新：
+
+    ```bash
+    git push --force
+    ```
+
+希望这些步骤能帮到你！如果有其他问题，请随时告诉我。
