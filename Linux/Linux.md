@@ -1134,6 +1134,15 @@ userdel jack
 userdel -r jack
 ```
 
+**切换用户**
+
+```shell
+# 切换到zhangsan用户
+su zhangsan
+```
+
+
+
 # 4. 权限
 
 ## 4.1 文件(夹)权限
