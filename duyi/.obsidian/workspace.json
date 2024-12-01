@@ -1,0 +1,180 @@
+{
+  "main": {
+    "id": "4cceae74a916aafb",
+    "type": "split",
+    "children": [
+      {
+        "id": "40834f024aaf384f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a56bfa7703617015",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "规划.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "规划"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "08267b6acc155ff7",
+    "type": "split",
+    "children": [
+      {
+        "id": "910b29cda745a948",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "da632a5470cf8d11",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "a13b889381b96925",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "97127105d511422d",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "bf10403283b26481",
+    "type": "split",
+    "children": [
+      {
+        "id": "cc6c2d016211e042",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "479b4d287120bc18",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "HTML&CSS/查漏补缺.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "查漏补缺 的反向链接列表"
+            }
+          },
+          {
+            "id": "de0dbb5a11c7e5c6",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "HTML&CSS/查漏补缺.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "查漏补缺 的出链列表"
+            }
+          },
+          {
+            "id": "9b33c43c6ea2bc95",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "504da14f247a7497",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "HTML&CSS/查漏补缺.md"
+              },
+              "icon": "lucide-list",
+              "title": "查漏补缺 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "obsidian-excalidraw-plugin:新建绘图文件": false
+    }
+  },
+  "active": "a56bfa7703617015",
+  "lastOpenFiles": [
+    "HTML&CSS/Excalidraw/计算过程.excalidraw.md",
+    "HTML&CSS/images/计算过程.png",
+    "HTML&CSS/images/Pasted image 20241201182405.png",
+    "HTML&CSS/CSS属性值的计算过程.md",
+    "HTML&CSS/images",
+    "HTML&CSS/查漏补缺.md",
+    "规划.md",
+    "HTML&CSS/Excalidraw/Drawing 2024-12-01 17.44.37.excalidraw.md",
+    "未命名.canvas",
+    "HTML&CSS/Excalidraw",
+    "HTML&CSS"
+  ]
+}
